@@ -84,7 +84,11 @@ jobs:
         run: cargo install cargo-llvm-cov
 
       - name: Generate coverage
-        run: cargo llvm-cov --release --workspace --lcov --output-path lcov.info
+        # Skip CT timing tests: coverage instrumentation inserts data-dependent
+        # counter increments per branch/edge, which itself introduces timing
+        # variance that dwarfs the constant-time properties being tested.
+        # These tests are still run (without instrumentation) in the Test job.
+        run: cargo llvm-cov --release --workspace --lcov --output-path lcov.info -- --skip timing
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
