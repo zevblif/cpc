@@ -12,7 +12,7 @@ use cpc::verify::verify;
 /// Build a path `v_0, v_1, ..., v_L` where each step `d_i = v_i - v_{i-1}`
 /// is a unit vector `e_{i-1}` (norm 1, well within `beta = 45`).
 fn build_test_path(l: usize) -> Vec<Poly> {
-    assert!(l >= 1 && l <= 256, "test path length must be in [1, 256]");
+    assert!((1..=256).contains(&l), "test path length must be in [1, 256]");
     let mut path = vec![Poly::zero()];
     let mut current = Poly::zero();
     for i in 0..l {
@@ -102,7 +102,7 @@ fn oversized_z_rejected() {
     // A single coefficient of B+1 suffices (centered L2 norm = B+1 > B).
     let mut bad = proof.clone();
     bad.z = Poly::zero();
-    bad.z.coeffs[0] = (B + 1) as i64;
+    bad.z.coeffs[0] = B + 1;
     assert!(
         bad.z.norm_l2() > B as f64,
         "test setup: crafted z must actually exceed the norm bound"

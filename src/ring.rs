@@ -54,8 +54,8 @@ fn zetas() -> &'static [i64] {
     ZETAS.get_or_init(|| {
         const ZETA_ROOT: i64 = 1753;
         let mut table = vec![0i64; M];
-        for k in 0..M {
-            table[k] = mod_pow(ZETA_ROOT, brv8(k) as u64, Q);
+        for (k, slot) in table.iter_mut().enumerate() {
+            *slot = mod_pow(ZETA_ROOT, brv8(k) as u64, Q);
         }
         table
     })

@@ -146,16 +146,15 @@ fn gauss_sampler_distribution() {
     let mut sum = [0f64; M];
     for _ in 0..n {
         let p = sample_gauss_poly(SIGMA, &mut rng);
-        for i in 0..M {
-            let c = p.coeffs[i];
-            let centered = if c > Q / 2 { c - Q } else { c } as f64;
+        for (i, c) in p.coeffs.iter().enumerate() {
+            let centered = if *c > Q / 2 { c - Q } else { *c } as f64;
             sum[i] += centered;
         }
     }
     // mean ~ 0 (with 1000 samples and sigma=32400, std of mean is sigma/sqrt(1000) ~ 1024;
     // allow 5x margin)
-    for i in 0..M {
-        let mean = sum[i] / n as f64;
+    for (i, s) in sum.iter().enumerate() {
+        let mean = *s / n as f64;
         assert!(
             mean.abs() < SIGMA * 0.2,
             "coeff {i} mean {mean} too far from 0 (sigma={SIGMA})"

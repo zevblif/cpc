@@ -70,12 +70,11 @@ impl MerkleTree {
         let padded = leaf_count.next_power_of_two();
         let mut nodes: Vec<Hash> = Vec::with_capacity(2 * padded);
         // Leaf level (with padding).
-        for i in 0..padded {
-            if i < leaf_count {
-                nodes.push(hash_leaf(&leaves[i]));
-            } else {
-                nodes.push([0u8; 32]);
-            }
+        for leaf in leaves {
+            nodes.push(hash_leaf(leaf));
+        }
+        for _ in leaf_count..padded {
+            nodes.push([0u8; 32]);
         }
         // Build internal levels bottom-up.
         let mut level_start = 0usize;
@@ -121,7 +120,7 @@ impl MerkleTree {
         let mut level_start = 0usize;
         let mut level_size = padded;
         while level_size > 1 {
-            let sibling = if idx % 2 == 0 { idx + 1 } else { idx - 1 };
+            let sibling = if idx.is_multiple_of(2) { idx + 1 } else { idx - 1 };
             siblings.push(self.nodes[level_start + sibling]);
             idx /= 2;
             level_start += level_size;
@@ -140,7 +139,7 @@ pub fn verify_path(root: &Hash, leaf_bytes: &[u8], path: &MerklePath) -> bool {
     let mut h = hash_leaf(leaf_bytes);
     let mut idx = path.index;
     for &sibling in &path.siblings {
-        if idx % 2 == 0 {
+        if idx.is_multiple_of(2) {
             h = hash_pair(&h, &sibling);
         } else {
             h = hash_pair(&sibling, &h);
@@ -159,9 +158,9 @@ mod tests {
         let leaves: Vec<Vec<u8>> = (0..8).map(|i| vec![i as u8; 32]).collect();
         let tree = MerkleTree::build(&leaves);
         let root = tree.root();
-        for i in 0..8 {
+        for (i, leaf) in leaves.iter().enumerate() {
             let path = tree.generate_path(i);
-            assert!(verify_path(&root, &leaves[i], &path), "valid path for leaf {i} must verify");
+            assert!(verify_path(&root, leaf, &path), "valid path for leaf {i} must verify");
         }
         // Tampered leaf rejected.
         let path = tree.generate_path(3);

@@ -70,8 +70,7 @@ pub const fn barrett_reduce(a: i64) -> i64 {
     let ge = ((r >= Q) as i64).wrapping_neg();
     let r = r - (ge & Q);
     let ge = ((r >= Q) as i64).wrapping_neg();
-    let r = r - (ge & Q);
-    r
+    r - (ge & Q)
 }
 
 /// Constant-time Montgomery reduction.
@@ -95,8 +94,7 @@ pub const fn montgomery_reduce(a: i64) -> i64 {
     let ge = ((t >= Q) as i64).wrapping_neg();
     let t = t - (ge & Q);
     let ge = ((t >= Q) as i64).wrapping_neg();
-    let t = t - (ge & Q);
-    t
+    t - (ge & Q)
 }
 
 /// Constant-time conditional subtract Q: if `a >= Q`, returns `a - Q`,
@@ -146,7 +144,7 @@ mod tests {
                  Q * Q, (Q - 1) * (Q - 1), Q * (Q / 2),
                  1 << 24, (1 << 24) - 1] {
             let result = barrett_reduce(a);
-            assert!(result >= 0 && result < Q,
+            assert!((0..Q).contains(&result),
                 "barrett_reduce({}) = {} not in [0, Q)", a, result);
             let expected = a.rem_euclid(Q);
             assert_eq!(result, expected,
@@ -155,7 +153,7 @@ mod tests {
         // Critical: negative inputs (subtraction results)
         for a in [-1, -Q, -(Q / 2), -Q + 1, -(Q - 1), -2 * Q, -(Q * Q)] {
             let result = barrett_reduce(a);
-            assert!(result >= 0 && result < Q,
+            assert!((0..Q).contains(&result),
                 "barrett_reduce({}) = {} not in [0, Q)", a, result);
             let expected = a.rem_euclid(Q);
             assert_eq!(result, expected,

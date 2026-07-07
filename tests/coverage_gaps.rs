@@ -113,10 +113,10 @@ fn merkle_tree_odd_leaf_count_uses_padding_branch() {
 
     let root = tree.root();
     // Every real leaf must verify.
-    for i in 0..3 {
+    for (i, leaf) in leaves.iter().enumerate() {
         let path = tree.generate_path(i);
         assert!(
-            verify_path(&root, &leaves[i], &path),
+            verify_path(&root, leaf, &path),
             "valid path for leaf {} must verify under odd-leaf tree",
             i
         );

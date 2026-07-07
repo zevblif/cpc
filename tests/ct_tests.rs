@@ -196,21 +196,26 @@ fn rejection_ratio_timing_independent_of_secret() {
     let tau_ratio = SIGMA / t_bound;
     let log_m = log_rejection_m(tau_ratio);
 
+    // Use a large iteration count with black_box: rejection_acceptance_ratio is
+    // a pure function (no side effects), so `let _ = ...` lets the optimizer
+    // eliminate the entire loop in release builds (observed: 0.000ms, NaN/inf
+    // ratios). black_box forces the compiler to execute every iteration.
+    const RR_ITERS: usize = 50_000;
     for _ in 0..200 {
-        let _ = rejection_acceptance_ratio(&z, &z_minus_cd_a, SIGMA, log_m);
+        std::hint::black_box(rejection_acceptance_ratio(&z, &z_minus_cd_a, SIGMA, log_m));
     }
 
     let t_a = {
         let start = Instant::now();
-        for _ in 0..2000 {
-            let _ = rejection_acceptance_ratio(&z, &z_minus_cd_a, SIGMA, log_m);
+        for _ in 0..RR_ITERS {
+            std::hint::black_box(rejection_acceptance_ratio(&z, &z_minus_cd_a, SIGMA, log_m));
         }
         start.elapsed().as_secs_f64()
     };
     let t_b = {
         let start = Instant::now();
-        for _ in 0..2000 {
-            let _ = rejection_acceptance_ratio(&z, &z_minus_cd_b, SIGMA, log_m);
+        for _ in 0..RR_ITERS {
+            std::hint::black_box(rejection_acceptance_ratio(&z, &z_minus_cd_b, SIGMA, log_m));
         }
         start.elapsed().as_secs_f64()
     };
