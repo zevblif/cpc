@@ -65,7 +65,10 @@ impl MerkleTree {
     /// hashes. These padding leaves are never exposed via [`generate_path`]
     /// (which rejects out-of-range indices).
     pub fn build(leaves: &[Vec<u8>]) -> Self {
-        assert!(!leaves.is_empty(), "MerkleTree::build: at least one leaf required");
+        assert!(
+            !leaves.is_empty(),
+            "MerkleTree::build: at least one leaf required"
+        );
         let leaf_count = leaves.len();
         let padded = leaf_count.next_power_of_two();
         let mut nodes: Vec<Hash> = Vec::with_capacity(2 * padded);
@@ -120,7 +123,11 @@ impl MerkleTree {
         let mut level_start = 0usize;
         let mut level_size = padded;
         while level_size > 1 {
-            let sibling = if idx.is_multiple_of(2) { idx + 1 } else { idx - 1 };
+            let sibling = if idx.is_multiple_of(2) {
+                idx + 1
+            } else {
+                idx - 1
+            };
             siblings.push(self.nodes[level_start + sibling]);
             idx /= 2;
             level_start += level_size;
@@ -160,15 +167,24 @@ mod tests {
         let root = tree.root();
         for (i, leaf) in leaves.iter().enumerate() {
             let path = tree.generate_path(i);
-            assert!(verify_path(&root, leaf, &path), "valid path for leaf {i} must verify");
+            assert!(
+                verify_path(&root, leaf, &path),
+                "valid path for leaf {i} must verify"
+            );
         }
         // Tampered leaf rejected.
         let path = tree.generate_path(3);
         let mut bad = leaves[3].clone();
         bad[0] ^= 0xFF;
-        assert!(!verify_path(&root, &bad, &path), "tampered leaf must be rejected");
+        assert!(
+            !verify_path(&root, &bad, &path),
+            "tampered leaf must be rejected"
+        );
         // Wrong leaf under existing path rejected.
         let path3 = tree.generate_path(3);
-        assert!(!verify_path(&root, &leaves[5], &path3), "leaf 5 under path 3 must be rejected");
+        assert!(
+            !verify_path(&root, &leaves[5], &path3),
+            "leaf 5 under path 3 must be rejected"
+        );
     }
 }

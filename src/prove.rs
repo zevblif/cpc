@@ -11,7 +11,10 @@ use crate::merkle::MerklePath;
 use crate::params::PublicParams;
 use crate::ring::Poly;
 use rand::Rng;
-use sha3::{Shake256, digest::{ExtendableOutput, Update, XofReader}};
+use sha3::{
+    digest::{ExtendableOutput, Update, XofReader},
+    Shake256,
+};
 
 /// A CPC proof `pi_i` for opening step index `i`.
 ///
@@ -105,7 +108,10 @@ impl Proof {
             u_i,
             t1,
             t2,
-            path: crate::merkle::MerklePath { index: index as usize, siblings },
+            path: crate::merkle::MerklePath {
+                index: index as usize,
+                siblings,
+            },
         })
     }
 }
@@ -172,7 +178,16 @@ pub fn prove_with_iteration_count(
         let u: f64 = rng.gen_range(0.0..1.0);
         if u <= rho {
             let path = aux.tree.generate_path(i - 1);
-            return (Proof { z, u_i, t1, t2, path }, iter + 1);
+            return (
+                Proof {
+                    z,
+                    u_i,
+                    t1,
+                    t2,
+                    path,
+                },
+                iter + 1,
+            );
         }
     }
     panic!(

@@ -131,7 +131,10 @@ fn rejection_sampling_statistics() {
     println!("  Theory (||d||~beta*sqrt(m)): M≈2.7, accept≈37%");
 
     // Sanity: average should be in a reasonable range around the theoretical ~2.7
-    assert!(avg > 1.0 && avg < 10.0, "average iterations {avg} out of expected range");
+    assert!(
+        avg > 1.0 && avg < 10.0,
+        "average iterations {avg} out of expected range"
+    );
     assert!(max < 50, "max iterations {max} unexpectedly high");
 }
 
@@ -157,8 +160,14 @@ fn proof_size_at_l1024() {
     println!("  u_i     : {u_bytes} bytes");
     println!("  t1      : {t1_bytes} bytes (Option B)");
     println!("  t2      : {t2_bytes} bytes (Option B)");
-    println!("  path    : {path_bytes} bytes ({} siblings + index)", proof.path.siblings.len());
-    println!("  total   : {total} bytes (~{:.2} KB)", total as f64 / 1024.0);
+    println!(
+        "  path    : {path_bytes} bytes ({} siblings + index)",
+        proof.path.siblings.len()
+    );
+    println!(
+        "  total   : {total} bytes (~{:.2} KB)",
+        total as f64 / 1024.0
+    );
 
     // Each polynomial serializes to 3*M = 768 bytes
     assert_eq!(z_bytes, 3 * M);

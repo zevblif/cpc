@@ -165,13 +165,22 @@ fn gauss_sampling_timing_independent_of_rng_state() {
         start.elapsed().as_secs_f64()
     };
 
-    let ratio = if t_zero > t_rand { t_zero / t_rand } else { t_rand / t_zero };
+    let ratio = if t_zero > t_rand {
+        t_zero / t_rand
+    } else {
+        t_rand / t_zero
+    };
     println!(
         "Gauss sampling: fixed-seed={:.3}ms, rand-seed={:.3}ms, ratio={:.2}x (threshold={:.1}x)",
-        t_zero * 1000.0, t_rand * 1000.0, ratio, THRESHOLD
+        t_zero * 1000.0,
+        t_rand * 1000.0,
+        ratio,
+        THRESHOLD
     );
-    assert!(ratio < THRESHOLD,
-        "Gauss sampling ratio {ratio:.2}x exceeds {THRESHOLD}x");
+    assert!(
+        ratio < THRESHOLD,
+        "Gauss sampling ratio {ratio:.2}x exceeds {THRESHOLD}x"
+    );
 }
 
 #[test]
@@ -183,7 +192,9 @@ fn rejection_ratio_timing_independent_of_secret() {
         let mut p = Poly::zero();
         let mut s = seed;
         for c in p.coeffs.iter_mut() {
-            s = s.wrapping_mul(0x5851F42D4C957F2D).wrapping_add(0x14057B7EF767814F);
+            s = s
+                .wrapping_mul(0x5851F42D4C957F2D)
+                .wrapping_add(0x14057B7EF767814F);
             *c = (s % Q as u64) as i64;
         }
         p
@@ -223,8 +234,13 @@ fn rejection_ratio_timing_independent_of_secret() {
     let ratio = if t_a > t_b { t_a / t_b } else { t_b / t_a };
     println!(
         "rejection_ratio: secret_a={:.3}ms, secret_b={:.3}ms, ratio={:.2}x (threshold={:.1}x)",
-        t_a * 1000.0, t_b * 1000.0, ratio, THRESHOLD
+        t_a * 1000.0,
+        t_b * 1000.0,
+        ratio,
+        THRESHOLD
     );
-    assert!(ratio < THRESHOLD,
-        "rejection_ratio timing ratio {ratio:.2}x exceeds {THRESHOLD}x");
+    assert!(
+        ratio < THRESHOLD,
+        "rejection_ratio timing ratio {ratio:.2}x exceeds {THRESHOLD}x"
+    );
 }

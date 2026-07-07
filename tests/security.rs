@@ -4,7 +4,7 @@
 //! with exactly one component and asserts that `verify` returns `false`.
 
 use cpc::commitment::commit;
-use cpc::params::{B, Q, PublicParams};
+use cpc::params::{PublicParams, B, Q};
 use cpc::prove::prove;
 use cpc::ring::Poly;
 use cpc::verify::verify;
@@ -12,7 +12,10 @@ use cpc::verify::verify;
 /// Build a path `v_0, v_1, ..., v_L` where each step `d_i = v_i - v_{i-1}`
 /// is a unit vector `e_{i-1}` (norm 1, well within `beta = 45`).
 fn build_test_path(l: usize) -> Vec<Poly> {
-    assert!((1..=256).contains(&l), "test path length must be in [1, 256]");
+    assert!(
+        (1..=256).contains(&l),
+        "test path length must be in [1, 256]"
+    );
     let mut path = vec![Poly::zero()];
     let mut current = Poly::zero();
     for i in 0..l {
@@ -33,7 +36,10 @@ fn tampered_leaf_rejected() {
     let mu = b"context-nonce";
 
     let proof = prove(&pp, &aux, 2, mu);
-    assert!(verify(&pp, &com, &aux.deltas, 2, &proof, mu), "baseline must verify");
+    assert!(
+        verify(&pp, &com, &aux.deltas, 2, &proof, mu),
+        "baseline must verify"
+    );
 
     // Flip one coefficient of u_i: breaks both the Sigma-protocol equation
     // (b*z == t2 + c*u_i) and the Merkle authentication path.
@@ -54,7 +60,10 @@ fn wrong_index_rejected() {
     let mu = b"context-nonce";
 
     let proof = prove(&pp, &aux, 2, mu);
-    assert!(verify(&pp, &com, &aux.deltas, 2, &proof, mu), "baseline must verify");
+    assert!(
+        verify(&pp, &com, &aux.deltas, 2, &proof, mu),
+        "baseline must verify"
+    );
 
     // The challenge c is re-derived from the index; a different index yields
     // a different c, breaking the response equation z = r + c*d_i.
@@ -77,7 +86,10 @@ fn wrong_nonce_rejected() {
     let mu = b"context-nonce-1";
 
     let proof = prove(&pp, &aux, 1, mu);
-    assert!(verify(&pp, &com, &aux.deltas, 1, &proof, mu), "baseline must verify");
+    assert!(
+        verify(&pp, &com, &aux.deltas, 1, &proof, mu),
+        "baseline must verify"
+    );
 
     // The nonce mu is mixed into the Fiat-Shamir hash; changing it produces a
     // different challenge c, so the response equation no longer holds.
@@ -96,7 +108,10 @@ fn oversized_z_rejected() {
     let mu = b"context-nonce";
 
     let proof = prove(&pp, &aux, 1, mu);
-    assert!(verify(&pp, &com, &aux.deltas, 1, &proof, mu), "baseline must verify");
+    assert!(
+        verify(&pp, &com, &aux.deltas, 1, &proof, mu),
+        "baseline must verify"
+    );
 
     // Replace z with a polynomial whose L2 norm exceeds B = 622080.
     // A single coefficient of B+1 suffices (centered L2 norm = B+1 > B).
@@ -134,15 +149,33 @@ fn two_responses_same_index_do_not_break_binding() {
     let proof2 = prove(&pp, &aux, 2, mu2);
 
     // Both must verify.
-    assert!(verify(&pp, &com, &aux.deltas, 2, &proof1, mu1), "proof1 must verify");
-    assert!(verify(&pp, &com, &aux.deltas, 2, &proof2, mu2), "proof2 must verify");
+    assert!(
+        verify(&pp, &com, &aux.deltas, 2, &proof1, mu1),
+        "proof1 must verify"
+    );
+    assert!(
+        verify(&pp, &com, &aux.deltas, 2, &proof2, mu2),
+        "proof2 must verify"
+    );
 
     // Binding invariant: both proofs open the *same* u_i under the *same* com.
     // (u_i comes from aux, not from the random r, so it is bound to com.)
-    assert_eq!(proof1.u_i.coeffs, proof2.u_i.coeffs, "u_i must be the same (binding)");
+    assert_eq!(
+        proof1.u_i.coeffs, proof2.u_i.coeffs,
+        "u_i must be the same (binding)"
+    );
 
     // The transcripts differ: different r produces different t1, t2, z.
-    assert_ne!(proof1.z.coeffs, proof2.z.coeffs, "z must differ (different r/c)");
-    assert_ne!(proof1.t1.coeffs, proof2.t1.coeffs, "t1 must differ (different r)");
-    assert_ne!(proof1.t2.coeffs, proof2.t2.coeffs, "t2 must differ (different r)");
+    assert_ne!(
+        proof1.z.coeffs, proof2.z.coeffs,
+        "z must differ (different r/c)"
+    );
+    assert_ne!(
+        proof1.t1.coeffs, proof2.t1.coeffs,
+        "t1 must differ (different r)"
+    );
+    assert_ne!(
+        proof1.t2.coeffs, proof2.t2.coeffs,
+        "t2 must differ (different r)"
+    );
 }

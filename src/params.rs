@@ -85,9 +85,12 @@ impl PublicParams {
 /// with domain separator `prefix`. Uses rejection sampling on 3-byte values
 /// to ensure uniformity in `[0, q)`.
 fn sample_poly_uniform(seed: &[u8], prefix: &[u8]) -> crate::ring::Poly {
-    use sha3::{Shake256, digest::{ExtendableOutput, Update, XofReader}};
     use crate::params::{M, Q};
     use crate::ring::Poly;
+    use sha3::{
+        digest::{ExtendableOutput, Update, XofReader},
+        Shake256,
+    };
 
     let mut hasher = Shake256::default();
     hasher.update(prefix);

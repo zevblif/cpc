@@ -140,24 +140,48 @@ mod tests {
     #[test]
     fn barrett_correctness() {
         // Test products (large positive inputs up to Q^2)
-        for a in [0, 1, Q - 1, Q, Q + 1, 2 * Q,
-                 Q * Q, (Q - 1) * (Q - 1), Q * (Q / 2),
-                 1 << 24, (1 << 24) - 1] {
+        for a in [
+            0,
+            1,
+            Q - 1,
+            Q,
+            Q + 1,
+            2 * Q,
+            Q * Q,
+            (Q - 1) * (Q - 1),
+            Q * (Q / 2),
+            1 << 24,
+            (1 << 24) - 1,
+        ] {
             let result = barrett_reduce(a);
-            assert!((0..Q).contains(&result),
-                "barrett_reduce({}) = {} not in [0, Q)", a, result);
+            assert!(
+                (0..Q).contains(&result),
+                "barrett_reduce({}) = {} not in [0, Q)",
+                a,
+                result
+            );
             let expected = a.rem_euclid(Q);
-            assert_eq!(result, expected,
-                "barrett_reduce({}) = {} != expected {}", a, result, expected);
+            assert_eq!(
+                result, expected,
+                "barrett_reduce({}) = {} != expected {}",
+                a, result, expected
+            );
         }
         // Critical: negative inputs (subtraction results)
         for a in [-1, -Q, -(Q / 2), -Q + 1, -(Q - 1), -2 * Q, -(Q * Q)] {
             let result = barrett_reduce(a);
-            assert!((0..Q).contains(&result),
-                "barrett_reduce({}) = {} not in [0, Q)", a, result);
+            assert!(
+                (0..Q).contains(&result),
+                "barrett_reduce({}) = {} not in [0, Q)",
+                a,
+                result
+            );
             let expected = a.rem_euclid(Q);
-            assert_eq!(result, expected,
-                "barrett_reduce({}) = {} != expected {}", a, result, expected);
+            assert_eq!(
+                result, expected,
+                "barrett_reduce({}) = {} != expected {}",
+                a, result, expected
+            );
         }
     }
 
@@ -167,8 +191,14 @@ mod tests {
         for a in [0i64, 1, 42, Q - 1, Q / 2, 1 << 20] {
             let prod = a.wrapping_mul(R);
             let result = montgomery_reduce(prod);
-            assert_eq!(result, a % Q,
-                "montgomery_reduce({} * R) = {} != {}", a, result, a % Q);
+            assert_eq!(
+                result,
+                a % Q,
+                "montgomery_reduce({} * R) = {} != {}",
+                a,
+                result,
+                a % Q
+            );
         }
         // Also test a general product: montgomery_reduce(x * y) == x*y * R^{-1} mod Q
         // Verify by multiplying back by R: (mont * R) mod Q should give x*y mod Q
@@ -178,9 +208,15 @@ mod tests {
             let mont = montgomery_reduce(prod);
             // mont = x * y * R^{-1} mod Q. Multiply by R mod Q: should get x*y mod Q
             let recovered = (mont * R) % Q;
-            assert_eq!(recovered, (x * y) % Q,
+            assert_eq!(
+                recovered,
+                (x * y) % Q,
                 "montgomery round-trip failed for x={}, y={}: got {}, expected {}",
-                x, y, recovered, (x * y) % Q);
+                x,
+                y,
+                recovered,
+                (x * y) % Q
+            );
         }
     }
 
@@ -188,15 +224,24 @@ mod tests {
     fn center_branchless_matches_naive() {
         for c in [0, 1, 100, 4_190_208, 4_190_209, Q - 1, Q / 2, Q / 2 + 1] {
             let naive = if c > (Q - 1) / 2 { c - Q } else { c };
-            assert_eq!(center(c), naive,
-                "center({}) = {} != naive {}", c, center(c), naive);
+            assert_eq!(
+                center(c),
+                naive,
+                "center({}) = {} != naive {}",
+                c,
+                center(c),
+                naive
+            );
         }
         // Verify |center(c)| matches the original norm pattern: min(c, Q-c)
         for c in [0, 1, 100, 4_190_208, 4_190_209, Q - 1] {
             let abs_centered = center(c).abs();
             let naive_abs = if c > (Q - 1) / 2 { Q - c } else { c };
-            assert_eq!(abs_centered, naive_abs,
-                "|center({})| = {} != |naive| {}", c, abs_centered, naive_abs);
+            assert_eq!(
+                abs_centered, naive_abs,
+                "|center({})| = {} != |naive| {}",
+                c, abs_centered, naive_abs
+            );
         }
     }
 }

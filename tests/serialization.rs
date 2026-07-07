@@ -1,7 +1,7 @@
 //! Round-trip tests for Proof serialization.
 
-use cpc::params::PublicParams;
 use cpc::commitment::commit;
+use cpc::params::PublicParams;
 use cpc::prove::{prove, Proof};
 use cpc::ring::Poly;
 use cpc::verify::verify;
@@ -34,7 +34,10 @@ fn proof_to_from_bytes_round_trip() {
     assert_eq!(restored.t1.coeffs, proof.t1.coeffs, "t1 mismatch");
     assert_eq!(restored.t2.coeffs, proof.t2.coeffs, "t2 mismatch");
     assert_eq!(restored.path.index, proof.path.index, "path.index mismatch");
-    assert_eq!(restored.path.siblings, proof.path.siblings, "siblings mismatch");
+    assert_eq!(
+        restored.path.siblings, proof.path.siblings,
+        "siblings mismatch"
+    );
 
     // Verify the restored proof is still valid
     assert!(
@@ -66,10 +69,16 @@ fn proof_from_bytes_rejects_malformed() {
     let proof = prove(&pp, &aux, 1, b"mu");
     let mut bytes = proof.to_bytes();
     bytes.truncate(bytes.len() - 1); // chop off last byte
-    assert!(Proof::from_bytes(&bytes).is_none(), "truncated input must be rejected");
+    assert!(
+        Proof::from_bytes(&bytes).is_none(),
+        "truncated input must be rejected"
+    );
     // Bad n_siblings
     let mut bad = proof.to_bytes();
     let n_sib_offset = 4 * 768 + 8;
     bad[n_sib_offset] = 100; // > 32
-    assert!(Proof::from_bytes(&bad).is_none(), "oversized n_siblings must be rejected");
+    assert!(
+        Proof::from_bytes(&bad).is_none(),
+        "oversized n_siblings must be rejected"
+    );
 }

@@ -11,11 +11,17 @@ fn params_consistency() {
 
     // sigma = 12 * tau * beta
     let sigma_expected = 12.0 * (TAU as f64) * (BETA as f64);
-    assert!((SIGMA - sigma_expected).abs() < 1.0, "sigma must equal 12*tau*beta");
+    assert!(
+        (SIGMA - sigma_expected).abs() < 1.0,
+        "sigma must equal 12*tau*beta"
+    );
 
     // B ≈ 1.2 * sigma * sqrt(m)
     let b_expected = 1.2 * SIGMA * (M as f64).sqrt();
-    assert!((B as f64 - b_expected).abs() < 1.0, "B must equal 1.2*sigma*sqrt(m)");
+    assert!(
+        (B as f64 - b_expected).abs() < 1.0,
+        "B must equal 1.2*sigma*sqrt(m)"
+    );
 
     // Extract norm bound = 4 * tau * m * B
     assert_eq!(EXTRACT_NORM_BOUND, 4 * (TAU as i64) * (M as i64) * B);
@@ -165,7 +171,10 @@ fn gauss_sampler_distribution() {
     let p = sample_gauss_poly(SIGMA, &mut rng);
     for c in &p.coeffs {
         let centered = if *c > Q / 2 { Q - *c } else { *c };
-        assert!(centered <= (6.0 * SIGMA) as i64, "sample exceeds 6*sigma tail");
+        assert!(
+            centered <= (6.0 * SIGMA) as i64,
+            "sample exceeds 6*sigma tail"
+        );
     }
 }
 
@@ -239,7 +248,10 @@ fn commit_returns_distinct_roots_for_distinct_paths() {
 
     let (com_a, aux_a) = commit(&pp, &path_a);
     let (com_b, _aux_b) = commit(&pp, &path_b);
-    assert_ne!(com_a, com_b, "distinct paths must yield distinct commitments");
+    assert_ne!(
+        com_a, com_b,
+        "distinct paths must yield distinct commitments"
+    );
 
     // aux has L = path.len() - 1 = 1 entries
     assert_eq!(aux_a.d_vec.len(), 1);

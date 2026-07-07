@@ -71,5 +71,13 @@ pub fn commit(pp: &PublicParams, path: &[Poly]) -> (Hash, Aux) {
 
     let tree = MerkleTree::build(&leaves);
     let com = tree.root();
-    (com, Aux { d_vec, u_vec, deltas, tree })
+    (
+        com,
+        Aux {
+            d_vec,
+            u_vec,
+            deltas,
+            tree,
+        },
+    )
 }

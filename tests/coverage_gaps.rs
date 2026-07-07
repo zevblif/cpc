@@ -72,7 +72,8 @@ fn rejection_acceptance_ratio_clamped_to_one() {
     let r = rejection_acceptance_ratio(&z, &z_minus_cd, SIGMA, log_m);
     assert_eq!(
         r, 1.0,
-        "when log_rho >= 0, ratio must be clamped to 1.0 (got {})", r
+        "when log_rho >= 0, ratio must be clamped to 1.0 (got {})",
+        r
     );
 }
 

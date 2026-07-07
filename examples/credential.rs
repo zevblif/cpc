@@ -58,7 +58,10 @@ fn main() {
 
     // ---- Verifier: send a fresh nonce mu ----
     let mu = b"verifier-nonce-12345";
-    println!("\nVerifier: sent nonce mu = {:?}", std::str::from_utf8(mu).unwrap());
+    println!(
+        "\nVerifier: sent nonce mu = {:?}",
+        std::str::from_utf8(mu).unwrap()
+    );
 
     // ---- User: select index i=3, prove, and sign ----
     let i = 3;
@@ -75,18 +78,28 @@ fn main() {
     println!("  u_i     : {} bytes", u_bytes);
     println!("  t1      : {} bytes (Option B)", t1_bytes);
     println!("  t2      : {} bytes (Option B)", t2_bytes);
-    println!("  path    : {} bytes ({} siblings)", path_bytes, proof.path.siblings.len());
-    println!("  total   : {} bytes (~{:.2} KB)", proof_size, proof_size as f64 / 1024.0);
+    println!(
+        "  path    : {} bytes ({} siblings)",
+        path_bytes,
+        proof.path.siblings.len()
+    );
+    println!(
+        "  total   : {} bytes (~{:.2} KB)",
+        proof_size,
+        proof_size as f64 / 1024.0
+    );
 
     // ---- User: serialize proof for network transmission ----
     let proof_bytes = proof.to_bytes();
-    println!("\n  proof serialized to {} bytes (~{:.2} KB)",
+    println!(
+        "\n  proof serialized to {} bytes (~{:.2} KB)",
         proof_bytes.len(),
-        proof_bytes.len() as f64 / 1024.0);
+        proof_bytes.len() as f64 / 1024.0
+    );
 
     // Simulate network: restore on verifier side
-    let restored_proof = cpc::prove::Proof::from_bytes(&proof_bytes)
-        .expect("proof deserialization must succeed");
+    let restored_proof =
+        cpc::prove::Proof::from_bytes(&proof_bytes).expect("proof deserialization must succeed");
     assert_eq!(restored_proof.z.coeffs, proof.z.coeffs);
     println!("  proof round-trip: OK");
 

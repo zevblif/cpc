@@ -39,7 +39,9 @@ fn cdt() -> &'static [u64] {
         // then scale to [0, u64::MAX] for constant-time integer comparison.
         let z = *raw.last().unwrap();
         let scale = u64::MAX as f64;
-        raw.iter().map(|&v| ((v / z) * scale).round() as u64).collect()
+        raw.iter()
+            .map(|&v| ((v / z) * scale).round() as u64)
+            .collect()
     })
 }
 
@@ -99,16 +101,10 @@ pub fn sample_gauss_poly<R: RngCore + ?Sized>(sigma: f64, rng: &mut R) -> Poly {
 ///
 /// The clamp `min(1, rho)` is implemented as `log_rho.min(0.0).exp()` to
 /// avoid a data-dependent branch on the secret-dependent `log_rho` value.
-pub fn rejection_acceptance_ratio(
-    z: &Poly,
-    z_minus_cd: &Poly,
-    sigma: f64,
-    log_m: f64,
-) -> f64 {
+pub fn rejection_acceptance_ratio(z: &Poly, z_minus_cd: &Poly, sigma: f64, log_m: f64) -> f64 {
     let z_norm_sq = centered_norm_sq(z);
     let zd_norm_sq = centered_norm_sq(z_minus_cd);
-    let log_rho =
-        -std::f64::consts::PI * (z_norm_sq - zd_norm_sq) / (sigma * sigma) - log_m;
+    let log_rho = -std::f64::consts::PI * (z_norm_sq - zd_norm_sq) / (sigma * sigma) - log_m;
     log_rho.min(0.0).exp()
 }
 

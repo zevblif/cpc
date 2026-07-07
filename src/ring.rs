@@ -4,7 +4,7 @@
 //! Multiplication uses the Number-Theoretic Transform.
 
 use crate::params::{M, Q};
-use crate::ring_ct::{barrett_reduce, caddq, csubq, center};
+use crate::ring_ct::{barrett_reduce, caddq, center, csubq};
 use std::sync::OnceLock;
 
 /// A polynomial in `R`, stored as `m = 256` coefficients in `[0, q)`.
@@ -72,7 +72,12 @@ impl Poly {
     ///
     /// Negative values are reduced into `[0, q)`.
     pub fn from_coefficients(c: &[i32]) -> Self {
-        assert!(c.len() <= M, "coefficient slice length {} exceeds M={}", c.len(), M);
+        assert!(
+            c.len() <= M,
+            "coefficient slice length {} exceeds M={}",
+            c.len(),
+            M
+        );
         let mut coeffs = [0i64; M];
         for (i, &v) in c.iter().enumerate() {
             coeffs[i] = (v as i64).rem_euclid(Q);
@@ -91,16 +96,24 @@ impl Poly {
 
     /// `l2` norm of the *centered* coefficient vector.
     pub fn norm_l2(&self) -> f64 {
-        let s: f64 = self.coeffs.iter().map(|&c| {
-            let c = center(c).abs();
-            (c as f64).powi(2)
-        }).sum();
+        let s: f64 = self
+            .coeffs
+            .iter()
+            .map(|&c| {
+                let c = center(c).abs();
+                (c as f64).powi(2)
+            })
+            .sum();
         s.sqrt()
     }
 
     /// `l_inf` norm of the *centered* coefficient vector.
     pub fn norm_inf(&self) -> i64 {
-        self.coeffs.iter().map(|&c| center(c).abs()).max().unwrap_or(0)
+        self.coeffs
+            .iter()
+            .map(|&c| center(c).abs())
+            .max()
+            .unwrap_or(0)
     }
 
     /// In-place forward NTT (Cooley-Tukey, negacyclic, bit-reversed output).
@@ -198,7 +211,8 @@ impl Poly {
         }
         let mut coeffs = [0i64; M];
         for i in 0..M {
-            let c = (b[3 * i] as u64) | ((b[3 * i + 1] as u64) << 8) | ((b[3 * i + 2] as u64) << 16);
+            let c =
+                (b[3 * i] as u64) | ((b[3 * i + 1] as u64) << 8) | ((b[3 * i + 2] as u64) << 16);
             if c >= Q as u64 {
                 return None;
             }
@@ -228,7 +242,8 @@ impl<'de> serde::Deserialize<'de> for Poly {
             }
 
             fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Poly, E> {
-                Poly::from_bytes(v).ok_or_else(|| E::custom(format!("malformed Poly bytes (len={})", v.len())))
+                Poly::from_bytes(v)
+                    .ok_or_else(|| E::custom(format!("malformed Poly bytes (len={})", v.len())))
             }
 
             fn visit_byte_buf<E: serde::de::Error>(self, v: Vec<u8>) -> Result<Poly, E> {
@@ -241,7 +256,9 @@ impl<'de> serde::Deserialize<'de> for Poly {
                 while let Some(b) = seq.next_element::<u8>()? {
                     buf.push(b);
                 }
-                Poly::from_bytes(&buf).ok_or_else(|| A::Error::custom(format!("malformed Poly bytes (len={})", buf.len())))
+                Poly::from_bytes(&buf).ok_or_else(|| {
+                    A::Error::custom(format!("malformed Poly bytes (len={})", buf.len()))
+                })
             }
         }
 
