@@ -1,0 +1,102 @@
+================================================================================
+ CPC Performance Benchmark Results
+================================================================================
+
+Environment
+-----------
+  CPU          : 12th Gen Intel(R) Core(TM) i5-12500H
+  Rust         : rustc 1.93.1 (01f6ddf75 2026-02-11)
+  Cargo        : cargo 1.93.1 (083ac5135 2025-12-15)
+  Toolchain    : stable-x86_64-pc-windows-gnu
+  Profile      : bench (opt-level=3, lto=thin, codegen-units=1)
+  Criterion    : 0.5.1, sample_size=30, warm_up=1s, measurement=3s
+
+Parameters
+----------
+  m=256, q=8380417, tau=60, beta=45, sigma=32400, B=622080
+  Ring-SIS security target: 128-bit (Core-SVP, same as Dilithium-III)
+
+--------------------------------------------------------------------------------
+ 1. Commit Time (CPC.Commit)
+--------------------------------------------------------------------------------
+  L=8       :   156.78 µs   [154.16 – 159.42 µs]
+  L=32      :   659.54 µs   [647.85 – 671.42 µs]
+  L=1024    :    21.659 ms  [21.444 – 21.886 ms]
+
+  Scaling: O(L) polynomial multiplications + O(L log L) Merkle hashing.
+  L=1024 is dominated by 2048 NTT-based multiplications (a*d_i, b*d_i).
+
+--------------------------------------------------------------------------------
+ 2. Prove Time (CPC.Prove, includes rejection sampling)
+--------------------------------------------------------------------------------
+  L=8       :    77.111 µs  [76.123 – 78.400 µs]
+  L=32      :   144.10 µs   [139.79 – 148.84 µs]
+  L=1024    :     3.0708 ms [2.9790 – 3.1801 ms]
+
+  Note: prove time includes the full Fiat-Shamir-with-aborts loop.
+  L=1024 is dominated by the SHAKE-256 challenge hash over ~768 KB of deltas.
+
+--------------------------------------------------------------------------------
+ 3. Verify Time (CPC.Verify, CPU only — no Ed25519 signature check)
+--------------------------------------------------------------------------------
+  L=8       :    59.922 µs  [59.269 – 60.734 µs]
+  L=32      :   107.07 µs   [105.18 – 110.13 µs]
+  L=1024    :     2.1606 ms [2.1456 – 2.1787 ms]
+
+  Verify is faster than prove: no Gaussian sampling, no rejection loop.
+  L=1024 verify is dominated by the challenge hash (same ~768 KB input).
+
+--------------------------------------------------------------------------------
+ 4. Proof Size (L=1024, Option B: t1, t2 included)
+--------------------------------------------------------------------------------
+  Component          Bytes
+  ---------          -----
+  z  (response)       768   (3 * m, little-endian)
+  u_i (leaf)          768   (3 * m)
+  t1 (a*r)            768   (3 * m, Option B)
+  t2 (b*r)            768   (3 * m, Option B)
+  Merkle path         328   (10 sibling hashes * 32 + 8 byte index)
+  ---------          -----
+  TOTAL             3,400   (~3.32 KB)
+
+  Theory target: ~3.3 KB. Measured: 3.32 KB. ✓
+
+--------------------------------------------------------------------------------
+ 5. Commitment Size
+--------------------------------------------------------------------------------
+  com = SHA3-256 Merkle root = 32 bytes (constant, independent of L)
+
+--------------------------------------------------------------------------------
+ 6. Rejection Sampling Statistics (n=200, L=8, ||d||=1)
+--------------------------------------------------------------------------------
+  Average iterations : 1.31
+  Min iterations     : 1
+  Max iterations     : 4
+  P99 iterations     : 3
+  Acceptance rate    : 76.05%
+
+  Note: The test uses ||d||=1 (unit vector), which is far below the worst-case
+  bound ||d|| ≤ beta*sqrt(m) ≈ 720. Since rejection sampling acceptance
+  improves as ||d||/sigma decreases, the measured 76% acceptance is much
+  higher than the theoretical worst-case ~37% (M ≈ 2.7).
+
+  For paths with ||d_i|| near the beta bound, expect:
+    - Average iterations: ~2.7
+    - Acceptance rate:   ~37%
+    - P99 iterations:    ~8-10
+
+================================================================================
+ Summary
+================================================================================
+
+  | Operation | L=8     | L=32    | L=1024   |
+  |-----------|---------|---------|----------|
+  | Commit    | 157 µs  | 660 µs  | 21.7 ms  |
+  | Prove     |  77 µs  | 144 µs  |  3.1 ms  |
+  | Verify    |  60 µs  | 107 µs  |  2.2 ms  |
+
+  Proof size (L=1024): 3,400 bytes (~3.32 KB) — matches theory target ~3.3 KB
+  Commitment size:     32 bytes (constant)
+  Rejection acceptance: 76% (||d||=1) / ~37% (worst-case ||d||≈beta*sqrt(m))
+
+================================================================================

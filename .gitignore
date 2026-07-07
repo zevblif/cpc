@@ -1,0 +1,31 @@
+# Rust build artifacts
+/target
+**/*.rs.bk
+*.pdb
+
+# Cargo lockfile is kept for binary crates, ignored for libraries
+# (kept for this project as it includes benches/examples)
+
+# Internal planning documents (not part of public release)
+docs/hardening-plan-zh.md
+docs/implementation-plan-zh.md
+docs/implementation-plan.md
+
+# Local skills workspace
+/.skills/
+
+# Python virtual environment (used only for lattice-estimator experiments)
+/venv/
+venv/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Code coverage artifacts
+*.lcov
+coverage/

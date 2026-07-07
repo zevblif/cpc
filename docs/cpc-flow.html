@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPC Protocol Flow · Constrained Path Commitment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-soft: #0f1422;
+    --bg-card: #111726;
+    --border: #1f2738;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #00d4ff;
+    --accent-soft: rgba(0, 212, 255, 0.12);
+    --accent-glow: rgba(0, 212, 255, 0.35);
+    --danger: #ff6b6b;
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* night-sky lab grid backdrop */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 212, 255, 0.08), transparent 70%),
+      linear-gradient(rgba(0, 212, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 212, 255, 0.025) 1px, transparent 1px);
+    background-size: 100% 100%, 44px 44px, 44px 44px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    height: 100vh;
+    height: 100svh;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    padding: 22px 40px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    flex-wrap: wrap;
+    background: linear-gradient(180deg, rgba(0, 212, 255, 0.03), transparent);
+  }
+  .brand-mark {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border: 1px solid var(--accent);
+    padding: 3px 9px;
+    border-radius: 3px;
+    opacity: 0.9;
+  }
+  h1 {
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  h1 .accent { color: var(--accent); }
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    font-family: var(--font-mono);
+  }
+
+  /* ---------- Phase Tabs ---------- */
+  .phases {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    gap: 4px;
+    background: var(--bg-soft);
+    overflow-x: auto;
+  }
+  .phase-tab {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    padding: 14px 18px;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+    white-space: nowrap;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .phase-tab .idx {
+    font-size: 10px;
+    opacity: 0.5;
+  }
+  .phase-tab:hover { color: var(--text); }
+  .phase-tab.active {
+    color: var(--accent);
+  }
+  .phase-tab.active::after {
+    content: '';
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+
+  /* ---------- Main split ---------- */
+  .main {
+    display: grid;
+    grid-template-columns: 60% 40%;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ---------- Canvas ---------- */
+  .canvas-wrap {
+    position: relative;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .canvas {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    padding: 30px 40px;
+    min-height: 0;
+  }
+
+  /* persistent connection lines */
+  .links-svg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .links-svg line {
+    stroke: rgba(0, 212, 255, 0.12);
+    stroke-width: 1;
+    stroke-dasharray: 3 5;
+  }
+
+  /* actor nodes */
+  .actors {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    width: 100%;
+    gap: 20px;
+  }
+  .actor {
+    flex: 0 1 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 24px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-card);
+    transition: opacity 0.35s, border-color 0.35s, transform 0.35s;
+    position: relative;
+    opacity: 0.4;
+  }
+  .actor.active {
+    opacity: 1;
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    animation: pulse 2s ease-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.0), 0 0 22px rgba(0, 212, 255, 0.15); }
+    50% { box-shadow: 0 0 0 6px rgba(0, 212, 255, 0.0), 0 0 30px rgba(0, 212, 255, 0.3); }
+  }
+  .actor .glyph {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 28px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    margin-bottom: 12px;
+    transition: background 0.35s, color 0.35s;
+  }
+  .actor.active .glyph {
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: 0 0 18px var(--accent-glow);
+  }
+  .actor .role {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 2px;
+    color: var(--text);
+  }
+  .actor .role-zh {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.05em;
+  }
+
+  /* message animation layer */
+  .msg-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .msg-dot {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 14px 4px var(--accent-glow), 0 0 28px 8px rgba(0, 212, 255, 0.2);
+    transition: transform 1.4s cubic-bezier(0.45, 0.05, 0.35, 1), opacity 0.3s;
+    opacity: 0;
+  }
+  .msg-dot.flying { opacity: 1; }
+  .msg-dot::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    opacity: 0.4;
+    animation: ring 1.4s ease-out;
+  }
+  @keyframes ring {
+    0% { transform: scale(0.6); opacity: 0.8; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+  .msg-line {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    transform-origin: left center;
+    opacity: 0;
+    transition: opacity 0.4s;
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+  .msg-line.visible { opacity: 0.6; }
+  .msg-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--bg);
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.4s ease 0.3s;
+    pointer-events: none;
+  }
+  .msg-label.visible { opacity: 1; }
+
+  /* canvas status strip */
+  .canvas-status {
+    padding: 10px 40px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--bg-soft);
+  }
+  .canvas-status .step-code {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ---------- Markdown panel ---------- */
+  .panel {
+    overflow-y: auto;
+    padding: 28px 32px 40px;
+    background: var(--bg);
+  }
+  .panel::-webkit-scrollbar { width: 8px; }
+  .panel::-webkit-scrollbar-track { background: transparent; }
+  .panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .panel::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  .md-host { animation: fadeUp 0.5s ease both; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .md-host h2 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .md-host h2 .num {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    margin-right: 8px;
+  }
+  .md-host h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 22px 0 8px;
+    font-family: var(--font-mono);
+  }
+  .md-host p {
+    color: var(--text);
+    margin-bottom: 10px;
+    font-size: 14px;
+  }
+  .md-host ul, .md-host ol {
+    margin: 0 0 14px 0;
+    padding-left: 20px;
+  }
+  .md-host li {
+    color: var(--text);
+    margin-bottom: 6px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .md-host li::marker { color: var(--accent); }
+  .md-host strong { color: var(--accent); font-weight: 600; }
+  .md-host code {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .md-host pre {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent);
+    border-radius: 4px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    margin: 10px 0 14px;
+  }
+  .md-host pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text);
+    font-size: 12.5px;
+  }
+  .md-host em { color: var(--muted); font-style: normal; font-family: var(--font-mono); font-size: 12px; }
+
+  /* ---------- Controls ---------- */
+  .controls {
+    border-top: 1px solid var(--border);
+    padding: 14px 40px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: var(--bg-soft);
+    flex-wrap: wrap;
+  }
+  .ctrl-group { display: flex; align-items: center; gap: 8px; }
+  .ctrl-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s;
+    font-family: var(--font-mono);
+  }
+  .ctrl-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .ctrl-btn:active { transform: scale(0.95); }
+  .ctrl-btn.play {
+    width: 44px;
+    height: 44px;
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .ctrl-btn.play:hover { background: var(--accent); color: var(--bg); }
+  .step-indicator {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--muted);
+    min-width: 110px;
+  }
+  .step-indicator .cur { color: var(--accent); font-weight: 600; }
+  .progress {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    min-width: 80px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), rgba(0, 212, 255, 0.5));
+    transition: width 0.4s ease;
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+  .speed-group { display: flex; align-items: center; gap: 6px; }
+  .speed-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .speed-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 9px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .speed-btn:hover { color: var(--text); border-color: var(--muted); }
+  .speed-btn.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  /* ---------- Language toggle ---------- */
+  .lang-toggle {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    transition: border-color 0.15s;
+    align-self: center;
+  }
+  .lang-toggle:hover { border-color: var(--accent); }
+  .lang-toggle span[data-lang] { color: var(--muted); transition: color 0.15s; }
+  .lang-toggle span[data-lang].active { color: var(--accent); }
+  .lang-toggle .lang-sep { color: var(--border); }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 900px) {
+    header { padding: 16px 20px 12px; gap: 10px; }
+    h1 { font-size: 22px; }
+    .phases { padding: 0 20px; }
+    .phase-tab { padding: 12px 12px; font-size: 11px; }
+    .main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+    .canvas-wrap { border-right: none; border-bottom: 1px solid var(--border); }
+    .canvas { padding: 20px; }
+    .actor { flex: 0 1 120px; padding: 16px 10px; }
+    .actor .glyph { width: 44px; height: 44px; font-size: 22px; }
+    .actor .role { font-size: 12px; }
+    .panel { padding: 20px; }
+    .controls { padding: 12px 20px; gap: 12px; }
+    .step-indicator { min-width: 90px; }
+    .canvas-status { padding: 8px 20px; }
+  }
+  @media (max-width: 520px) {
+    .actors { gap: 8px; }
+    .actor { flex: 1; padding: 12px 6px; }
+    .actor .glyph { width: 38px; height: 38px; font-size: 18px; }
+    .actor .role-zh { display: none; }
+    .speed-group { width: 100%; justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <span class="brand-mark">CPC</span>
+    <h1>Protocol <span class="accent">Flow</span></h1>
+    <span class="subtitle" id="subtitle">Constrained Path Commitment · 后量子密码学协议交互式演示</span>
+    <button class="lang-toggle" id="btnLang" title="Switch language / 切换语言">
+      <span data-lang="zh" class="active">中文</span>
+      <span class="lang-sep">|</span>
+      <span data-lang="en">English</span>
+    </button>
+  </header>
+
+  <nav class="phases" id="phases">
+    <button class="phase-tab active" data-phase="0"><span class="idx">01</span>Setup</button>
+    <button class="phase-tab" data-phase="1"><span class="idx">02</span>Commit</button>
+    <button class="phase-tab" data-phase="2"><span class="idx">03</span>Prove</button>
+    <button class="phase-tab" data-phase="3"><span class="idx">04</span>Verify</button>
+  </nav>
+
+  <div class="main">
+    <section class="canvas-wrap">
+      <div class="canvas" id="canvas">
+        <svg class="links-svg" id="links"></svg>
+        <div class="actors">
+          <div class="actor" id="actor-issuer">
+            <div class="glyph">I</div>
+            <div class="role">Issuer</div>
+            <div class="role-zh">签发者</div>
+          </div>
+          <div class="actor" id="actor-holder">
+            <div class="glyph">H</div>
+            <div class="role">Holder</div>
+            <div class="role-zh">持有者</div>
+          </div>
+          <div class="actor" id="actor-verifier">
+            <div class="glyph">V</div>
+            <div class="role">Verifier</div>
+            <div class="role-zh">验证者</div>
+          </div>
+        </div>
+        <div class="msg-layer" id="msgLayer">
+          <div class="msg-line" id="msgLine"></div>
+          <div class="msg-dot" id="msgDot"></div>
+          <div class="msg-label" id="msgLabel"></div>
+        </div>
+      </div>
+      <div class="canvas-status">
+        <span>NODE <span class="step-code" id="statusActor">—</span></span>
+        <span id="statusMsg">awaiting step</span>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="md-host" id="mdHost"></div>
+    </aside>
+  </div>
+
+  <footer class="controls">
+    <div class="ctrl-group">
+      <button class="ctrl-btn" id="btnPrev" title="上一步 (←)">⏮</button>
+      <button class="ctrl-btn play" id="btnPlay" title="播放 / 暂停 (空格)">▶</button>
+      <button class="ctrl-btn" id="btnNext" title="下一步 (→)">⏭</button>
+    </div>
+    <div class="step-indicator">Step <span class="cur" id="stepCur">1</span> / <span id="stepTotal">15</span></div>
+    <div class="progress"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="speed-group">
+      <span class="speed-label">Speed</span>
+      <button class="speed-btn" data-speed="0.5">0.5×</button>
+      <button class="speed-btn active" data-speed="1">1×</button>
+      <button class="speed-btn" data-speed="2">2×</button>
+      <button class="speed-btn" data-speed="4">4×</button>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+/* ============================================================
+   CPC Protocol — full step dataset (15 steps across 4 phases)
+   ============================================================ */
+const STEPS = [
+  /* ---------- Phase 1: Setup ---------- */
+  {
+    phase: 0,
+    stepNum: "1.1",
+    title: { zh: "生成公共参数 (a, b)", en: "Generate Public Parameters (a, b)" },
+    actor: "issuer",
+    message: null,
+    markdown: {
+      zh: `## 步骤 1.1：生成公共参数
+
+**目的**：建立系统参数 \`a, b ∈ R²\`，所有后续协议都基于此。环 \`R = Z_q[x]/(x^256+1)\`，其中 \`q = 8380417\`、\`m = 256\`。
+
+### 角色与动作
+- **Issuer** 用 seed 通过 \`SHAKE-256\` 扩展生成 \`a, b ∈ R\`
+- 每个系数通过**拒绝采样**读取 3 字节，拒绝 \`≥ q\` 的值，保证系数在 \`[0, q)\` 中均匀
+
+### 技术保证
+- \`SHAKE-256\` 作为可扩展输出函数（XOF），从任意长度 seed 生成均匀比特流
+- 拒绝采样消除模偏差，保证 \`a, b\` 在 \`R\` 中统计均匀
+- Ring-SIS 参数 \`(m=256, q=8380417)\` 与 CRYSTALS-Dilithium-III 同构，Core-SVP 估计 \`≥ 128-bit\` 经典安全`,
+      en: `## Step 1.1: Generate Public Parameters
+
+**Purpose**: Establish system parameters \`a, b ∈ R²\`, on which all subsequent protocol steps rely. The ring \`R = Z_q[x]/(x^256+1)\`, where \`q = 8380417\`, \`m = 256\`.
+
+### Role & Action
+- **Issuer** expands a seed via \`SHAKE-256\` to generate \`a, b ∈ R\`
+- Each coefficient is read as 3 bytes via **rejection sampling**, rejecting values \`≥ q\`, ensuring coefficients are uniform in \`[0, q)\`
+
+### Technical Guarantees
+- \`SHAKE-256\` serves as an extensible output function (XOF), producing a uniform bitstream from a seed of arbitrary length
+- Rejection sampling eliminates modular bias, ensuring \`a, b\` are statistically uniform in \`R\`
+- Ring-SIS parameters \`(m=256, q=8380417)\` are isomorphic to CRYSTALS-Dilithium-III, with Core-SVP estimate \`≥ 128-bit\` classical security`
+    }
+  },
+
+  /* ---------- Phase 2: Commit ---------- */
+  {
+    phase: 1,
+    stepNum: "2.1",
+    title: { zh: "路径编码 d_i", en: "Path Encoding d_i" },
+    actor: "issuer",
+    message: null,
+    markdown: {
+      zh: `## 步骤 2.1：路径编码
+
+**目的**：把路径元素 \`p_i\` 编码为环元素 \`d_i ∈ R\`，使后续代数操作可行。
+
+### 角色与动作
+- 将路径元素的比特串**双射映射**为多项式系数
+- 每系数 \`23 bit\`，256 个系数填满 \`R\`
+
+### 技术保证
+- 双射映射保证可逆性（Holder 可恢复原始路径）
+- 编码在 \`[0, q)\` 内避免溢出
+- 编码过程常数时间，不泄露路径长度信息`,
+      en: `## Step 2.1: Path Encoding
+
+**Purpose**: Encode path elements \`p_i\` as ring elements \`d_i ∈ R\`, enabling subsequent algebraic operations.
+
+### Role & Action
+- **Bijectively map** the bit string of each path element to polynomial coefficients
+- Each coefficient occupies \`23 bit\`, with 256 coefficients filling \`R\`
+
+### Technical Guarantees
+- The bijective mapping ensures invertibility (Holder can recover the original path)
+- Encoding stays within \`[0, q)\` to avoid overflow
+- The encoding process is constant-time, leaking no information about path length`
+    }
+  },
+  {
+    phase: 1,
+    stepNum: "2.2",
+    title: { zh: "计算隐藏承诺 u_i = b · d_i", en: "Compute Hiding Commitment u_i = b · d_i" },
+    actor: "issuer",
+    message: { from: "issuer", to: "holder", label: "u_i = b·d_i" },
+    markdown: {
+      zh: `## 步骤 2.2：隐藏承诺
+
+**目的**：生成 \`u_i\` 作为 \`d_i\` 的“隐藏”承诺——\`u_i\` 公开但不泄露 \`d_i\`。
+
+### 角色与动作
+- 在环 \`R\` 中计算 \`u_i = b · d_i\`
+- 使用 **NTT（数论变换）** 加速，复杂度 \`O(m log m)\`
+
+### 技术保证
+- **Ring-SIS 单向性**：给定 \`b, u_i\` 求 \`d_i\` 等价于求解 Ring-SIS 实例，128-bit 硬度
+- NTT 把环乘法从 \`O(m²)\` 降到 \`O(m log m)\`
+- 常数时间 Barrett / Montgomery 约减保证无时序侧信道`,
+      en: `## Step 2.2: Hiding Commitment
+
+**Purpose**: Generate \`u_i\` as a "hiding" commitment of \`d_i\` — \`u_i\` is public but does not reveal \`d_i\`.
+
+### Role & Action
+- Compute \`u_i = b · d_i\` in the ring \`R\`
+- Use **NTT (Number Theoretic Transform)** for acceleration, complexity \`O(m log m)\`
+
+### Technical Guarantees
+- **Ring-SIS one-wayness**: recovering \`d_i\` given \`b, u_i\` is equivalent to solving a Ring-SIS instance, 128-bit hardness
+- NTT reduces ring multiplication from \`O(m²)\` to \`O(m log m)\`
+- Constant-time Barrett / Montgomery reduction prevents timing side-channels`
+    }
+  },
+  {
+    phase: 1,
+    stepNum: "2.3",
+    title: { zh: "计算投影承诺 Δ_i = a · d_i", en: "Compute Projection Commitment Δ_i = a · d_i" },
+    actor: "issuer",
+    message: { from: "issuer", to: "holder", label: "Δ_i = a·d_i" },
+    markdown: {
+      zh: `## 步骤 2.3：投影承诺
+
+**目的**：生成 \`Δ_i\` 作为 \`d_i\` 的“投影”承诺，用于后续验证线性关系。
+
+### 角色与动作
+- 在环 \`R\` 中计算 \`Δ_i = a · d_i\`
+- 同样用 NTT 加速
+
+### 技术保证
+- 同 2.2：**Ring-SIS 单向性** + **NTT** + **常数时间算术**
+- \`Δ_i\` 与 \`u_i\` 共同绑定 \`d_i\`，构成双重承诺
+- 验证阶段将用线性关系 \`a·z = t1 + c·Δ\` 检验一致性`,
+      en: `## Step 2.3: Projection Commitment
+
+**Purpose**: Generate \`Δ_i\` as a "projection" commitment of \`d_i\`, used later to verify linear relationships.
+
+### Role & Action
+- Compute \`Δ_i = a · d_i\` in the ring \`R\`
+- Also accelerated via NTT
+
+### Technical Guarantees
+- Same as 2.2: **Ring-SIS one-wayness** + **NTT** + **constant-time arithmetic**
+- \`Δ_i\` and \`u_i\` jointly bind \`d_i\`, forming a dual commitment
+- The verification phase will use the linear relation \`a·z = t1 + c·Δ\` to check consistency`
+    }
+  },
+  {
+    phase: 1,
+    stepNum: "2.4",
+    title: { zh: "构建 Merkle 树", en: "Build Merkle Tree" },
+    actor: "issuer",
+    message: { from: "issuer", to: "holder", label: "root = MerkleRoot(u_1..u_L)" },
+    markdown: {
+      zh: `## 步骤 2.4：构建 Merkle 树
+
+**目的**：把所有 \`u_i\` 绑定到一个根 \`root\`，任何单点篡改都可检测。
+
+### 角色与动作
+- \`root = MerkleRoot(H(u_1), …, H(u_L))\`
+- 用 \`SHA3-256\` 作为叶子与内部节点哈希
+
+### 技术保证
+- \`SHA3-256\` 抗碰撞（128-bit 安全级别）
+- Merkle 树结构使单叶篡改需伪造整条路径的哈希（\`O(log L)\` 个）
+- 验证 Merkle 路径只需 \`O(log L)\` 时间与空间`,
+      en: `## Step 2.4: Build Merkle Tree
+
+**Purpose**: Bind all \`u_i\` to a single root \`root\`, so that any single-point tampering can be detected.
+
+### Role & Action
+- \`root = MerkleRoot(H(u_1), …, H(u_L))\`
+- Use \`SHA3-256\` as the hash for leaves and internal nodes
+
+### Technical Guarantees
+- \`SHA3-256\` is collision-resistant (128-bit security level)
+- The Merkle tree structure means tampering with a single leaf requires forging an entire path of hashes (\`O(log L)\` of them)
+- Verifying a Merkle path requires only \`O(log L)\` time and space`
+    }
+  },
+
+  /* ---------- Phase 3: Prove ---------- */
+  {
+    phase: 2,
+    stepNum: "3.1",
+    title: { zh: "采样掩码多项式 r", en: "Sample Masking Polynomial r" },
+    actor: "holder",
+    message: null,
+    markdown: {
+      zh: `## 步骤 3.1：采样掩码多项式
+
+**目的**：生成随机掩码 \`r ∈ R\`，使响应 \`z = r + c·d\` 不泄露 \`d\`——这是**零知识性的核心**。
+
+### 角色与动作
+- 从离散高斯分布 \`D_σ\` 采样 \`r ∈ R\`
+- \`σ = 32400 = 12 · τ · β\`
+
+### 技术保证
+- **常数时间 CDT 采样**：u64 整数 CDT + 反向线性扫描 + \`ct_select\`（无早退分支）
+- 符号选择用单 RNG 位 + \`ct_select\`（branchless）
+- 最终约减用 \`caddq\`（常数时间条件加 Q）
+- 采样时间独立于输出值（4 个 CT 时序回归测试验证）`,
+      en: `## Step 3.1: Sample Masking Polynomial
+
+**Purpose**: Generate a random mask \`r ∈ R\` so that the response \`z = r + c·d\` does not reveal \`d\` — this is the **core of the zero-knowledge property**.
+
+### Role & Action
+- Sample \`r ∈ R\` from the discrete Gaussian distribution \`D_σ\`
+- \`σ = 32400 = 12 · τ · β\`
+
+### Technical Guarantees
+- **Constant-time CDT sampling**: u64 integer CDT + reverse linear scan + \`ct_select\` (no early-exit branches)
+- Sign selection uses a single RNG bit + \`ct_select\` (branchless)
+- Final reduction uses \`caddq\` (constant-time conditional add of Q)
+- Sampling time is independent of the output value (verified by 4 CT timing regression tests)`
+    }
+  },
+  {
+    phase: 2,
+    stepNum: "3.2",
+    title: { zh: "计算承诺 t1, t2", en: "Compute Commitments t1, t2" },
+    actor: "holder",
+    message: null,
+    markdown: {
+      zh: `## 步骤 3.2：计算掩码承诺
+
+**目的**：生成 \`t1 = a·r\`、\`t2 = b·r\` 作为 \`r\` 的承诺，绑定 \`r\` 但不泄露 \`r\`。
+
+### 角色与动作
+- NTT 乘法计算 \`t1 = a · r\`
+- NTT 乘法计算 \`t2 = b · r\`
+
+### 技术保证
+- **Ring-SIS 单向性**：给定 \`a, t1\` 求 \`r\` 等价于 Ring-SIS
+- \`t1, t2\` 共同绑定 \`r\`，供验证阶段检验线性关系
+- 常数时间 NTT 保证无侧信道`,
+      en: `## Step 3.2: Compute Masking Commitments
+
+**Purpose**: Generate \`t1 = a·r\`, \`t2 = b·r\` as commitments of \`r\`, binding \`r\` without revealing it.
+
+### Role & Action
+- Compute \`t1 = a · r\` via NTT multiplication
+- Compute \`t2 = b · r\` via NTT multiplication
+
+### Technical Guarantees
+- **Ring-SIS one-wayness**: recovering \`r\` given \`a, t1\` is equivalent to Ring-SIS
+- \`t1, t2\` jointly bind \`r\`, to be checked in the verification phase for the linear relation
+- Constant-time NTT prevents side-channels`
+    }
+  },
+  {
+    phase: 2,
+    stepNum: "3.3",
+    title: { zh: "Fiat-Shamir 挑战 c", en: "Fiat-Shamir Challenge c" },
+    actor: "holder",
+    message: null,
+    markdown: {
+      zh: `## 步骤 3.3：Fiat-Shamir 挑战
+
+**目的**：生成挑战 \`c\` 使协议**非交互式**（无需 Verifier 在线交互），且 \`c\` 不可被 Prover 预测。
+
+### 角色与动作
+- Holder 本地模拟 Verifier
+- \`c = H(com, Δ_1..Δ_L, i, t1, t2, μ)\`
+- \`c\` 是**稀疏 ±1 多项式**：恰好 \`τ = 60\` 个非零系数，每系数为 \`±1\`
+
+### 技术保证
+- \`SHAKE-256\` 作为**量子随机预言机（QROM）**，在量子敌手下仍安全
+- 稀疏挑战保证 \`c·d\` 的范数有界（\`≤ τ·β·√m\`），使 \`||z||\` 可控
+- Fiat-Shamir 变换把交互式 Sigma 协议变为非交互式，安全性在 QROM 中可证明`,
+      en: `## Step 3.3: Fiat-Shamir Challenge
+
+**Purpose**: Generate a challenge \`c\` that makes the protocol **non-interactive** (no online Verifier interaction needed) and that \`c\` cannot be predicted by the Prover.
+
+### Role & Action
+- Holder simulates the Verifier locally
+- \`c = H(com, Δ_1..Δ_L, i, t1, t2, μ)\`
+- \`c\` is a **sparse ±1 polynomial**: exactly \`τ = 60\` non-zero coefficients, each being \`±1\`
+
+### Technical Guarantees
+- \`SHAKE-256\` serves as a **Quantum Random Oracle Model (QROM)**, remaining secure even under quantum adversaries
+- The sparse challenge ensures the norm of \`c·d\` is bounded (\`≤ τ·β·√m\`), keeping \`||z||\` controlled
+- The Fiat-Shamir transform converts an interactive Sigma protocol into a non-interactive one, with provable security in the QROM`
+    }
+  },
+  {
+    phase: 2,
+    stepNum: "3.4",
+    title: { zh: "计算响应 z = r + c · d_i", en: "Compute Response z = r + c · d_i" },
+    actor: "holder",
+    message: { from: "holder", to: "verifier", label: "z = r + c·d_i" },
+    markdown: {
+      zh: `## 步骤 3.4：计算响应
+
+**目的**：生成响应 \`z\`，使 Verifier 可验证线性关系 \`a·z = t1 + c·Δ\` 而不泄露 \`d_i\`。
+
+### 角色与动作
+- 在环 \`R\` 中计算 \`z = r + c · d_i\`（多项式加法）
+- 将 \`z\` 发送给 Verifier
+
+### 技术保证
+- **环同态性**：\`a·z = a·(r + c·d) = a·r + c·a·d = t1 + c·Δ\`
+- \`z\` 的范数有界：\`||z|| ≤ ||r|| + τ·β·√m\`（稀疏挑战保证）
+- 常数时间多项式加法（\`caddq\` 约减）`,
+      en: `## Step 3.4: Compute Response
+
+**Purpose**: Generate the response \`z\` so that the Verifier can verify the linear relation \`a·z = t1 + c·Δ\` without revealing \`d_i\`.
+
+### Role & Action
+- Compute \`z = r + c · d_i\` in the ring \`R\` (polynomial addition)
+- Send \`z\` to the Verifier
+
+### Technical Guarantees
+- **Ring homomorphism**: \`a·z = a·(r + c·d) = a·r + c·a·d = t1 + c·Δ\`
+- The norm of \`z\` is bounded: \`||z|| ≤ ||r|| + τ·β·√m\` (guaranteed by the sparse challenge)
+- Constant-time polynomial addition (\`caddq\` reduction)`
+    }
+  },
+  {
+    phase: 2,
+    stepNum: "3.5",
+    title: { zh: "拒绝采样", en: "Rejection Sampling" },
+    actor: "holder",
+    message: null,
+    markdown: {
+      zh: `## 步骤 3.5：拒绝采样
+
+**目的**：以概率 \`ρ\` 接受 \`z\`，使最终 \`z\` 的分布**独立于 \`d_i\`**——零知识性的数学保证。
+
+### 角色与动作
+- 计算 \`ρ = min(1, D_σ(z) / (M · D_σ(z − c·d)))\`
+- 以概率 \`ρ\` 接受，否则**回到 3.1 重试**
+
+### 技术保证
+- **Lyubashevsky 拒绝采样定理**：输出分布与 \`d_i\` 统计独立
+- \`log M = 12/τ + 1/(2τ²) ≈ 1.003\`，平均重试次数 \`≈ M ≈ 2.7\`
+- 常数时间 \`rejection_acceptance_ratio\`（\`log_rho.min(0.0).exp()\`，无 if 分支）
+- \`centered_norm_sq\` 用 \`ring_ct::center\`（branchless）`,
+      en: `## Step 3.5: Rejection Sampling
+
+**Purpose**: Accept \`z\` with probability \`ρ\` so that the final distribution of \`z\` is **independent of \`d_i\`** — the mathematical guarantee of the zero-knowledge property.
+
+### Role & Action
+- Compute \`ρ = min(1, D_σ(z) / (M · D_σ(z − c·d)))\`
+- Accept with probability \`ρ\`, otherwise **go back to 3.1 and retry**
+
+### Technical Guarantees
+- **Lyubashevsky rejection sampling theorem**: the output distribution is statistically independent of \`d_i\`
+- \`log M = 12/τ + 1/(2τ²) ≈ 1.003\`, average retry count \`≈ M ≈ 2.7\`
+- Constant-time \`rejection_acceptance_ratio\` (\`log_rho.min(0.0).exp()\`, no if branches)
+- \`centered_norm_sq\` uses \`ring_ct::center\` (branchless)`
+    }
+  },
+
+  /* ---------- Phase 4: Verify ---------- */
+  {
+    phase: 3,
+    stepNum: "4.1",
+    title: { zh: "重算挑战 c", en: "Recompute Challenge c" },
+    actor: "verifier",
+    message: null,
+    markdown: {
+      zh: `## 步骤 4.1：重算挑战
+
+**目的**：确保挑战 \`c\` 与 Prover 一致——非交互式验证的核心。
+
+### 角色与动作
+- Verifier 独立计算 \`c = H(com, Δ, i, t1, t2, μ)\`
+- 与 Prove 3.3 完全相同
+
+### 技术保证
+- 哈希函数**确定性**：相同输入必产生相同输出
+- 若 Prover 伪造任何输入项，重算的 \`c\` 将不匹配，后续验证必然失败
+- 无需在线交互，验证可在任意时刻离线执行`,
+      en: `## Step 4.1: Recompute Challenge
+
+**Purpose**: Ensure the challenge \`c\` is consistent with the Prover's — the core of non-interactive verification.
+
+### Role & Action
+- Verifier independently computes \`c = H(com, Δ, i, t1, t2, μ)\`
+- Identical to Prove step 3.3
+
+### Technical Guarantees
+- **Determinism of the hash function**: identical inputs always produce identical outputs
+- If the Prover forges any input term, the recomputed \`c\` will not match, and subsequent verification will inevitably fail
+- No online interaction needed; verification can be performed offline at any time`
+    }
+  },
+  {
+    phase: 3,
+    stepNum: "4.2",
+    title: { zh: "验证线性关系 a·z == t1 + c·Δ_i", en: "Verify Linear Relation a·z == t1 + c·Δ_i" },
+    actor: "verifier",
+    message: null,
+    markdown: {
+      zh: `## 步骤 4.2：验证线性关系（投影）
+
+**目的**：确认 \`z\` 确实是 \`r + c·d_i\` 的形式——协议的**可靠性核心**。
+
+### 角色与动作
+- 检查 \`a·z == t1 + c·Δ_i\`（在环 \`R\` 中比较）
+
+### 技术保证
+- **环同态性**：若 \`z = r + c·d\`，则 \`a·z = a·r + c·a·d = t1 + c·Δ\`
+- **可靠性归约**：若攻击者能构造两个不同 \`(c, z), (c', z')\` 都通过验证，则 \`(c−c')⁻¹·(z−z') = d_i\`，违反 Ring-SIS 硬度
+- \`c − c'\` 在 \`R\` 中可逆（\`c, c'\` 是稀疏 ±1 多项式，差仍稀疏，环 \`R = Z_q[x]/(x^256+1)\` 中稀疏元素可逆）`,
+      en: `## Step 4.2: Verify Linear Relation (Projection)
+
+**Purpose**: Confirm that \`z\` is indeed of the form \`r + c·d_i\` — the **core of soundness** for the protocol.
+
+### Role & Action
+- Check \`a·z == t1 + c·Δ_i\` (compared in the ring \`R\`)
+
+### Technical Guarantees
+- **Ring homomorphism**: if \`z = r + c·d\`, then \`a·z = a·r + c·a·d = t1 + c·Δ\`
+- **Soundness reduction**: if an attacker can construct two distinct \`(c, z), (c', z')\` that both pass verification, then \`(c−c')⁻¹·(z−z') = d_i\`, violating Ring-SIS hardness
+- \`c − c'\` is invertible in \`R\` (\`c, c'\` are sparse ±1 polynomials; their difference remains sparse; sparse elements are invertible in the ring \`R = Z_q[x]/(x^256+1)\`)`
+    }
+  },
+  {
+    phase: 3,
+    stepNum: "4.3",
+    title: { zh: "验证线性关系 b·z == t2 + c·u_i", en: "Verify Linear Relation b·z == t2 + c·u_i" },
+    actor: "verifier",
+    message: null,
+    markdown: {
+      zh: `## 步骤 3.4 → 4.3：验证线性关系（隐藏）
+
+**目的**：双重绑定 \`z\` 与 \`u_i\`——确保 \`z\` 对应正确的 \`d_i\`，而非任意伪造。
+
+### 角色与动作
+- 检查 \`b·z == t2 + c·u_i\`
+
+### 技术保证
+- 同 4.2：**环同态性** + **Ring-SIS 可靠性归约**
+- 双重绑定（\`a·z\` 与 \`b·z\` 同时验证）使攻击者无法在不破 Ring-SIS 的前提下伪造 \`z\`
+- 若仅 4.2 通过而 4.3 失败，说明 \`z\` 对应错误的 \`d\`，拒绝`,
+      en: `## Step 3.4 → 4.3: Verify Linear Relation (Hiding)
+
+**Purpose**: Double-bind \`z\` to \`u_i\` — ensuring \`z\` corresponds to the correct \`d_i\`, not an arbitrary forgery.
+
+### Role & Action
+- Check \`b·z == t2 + c·u_i\`
+
+### Technical Guarantees
+- Same as 4.2: **ring homomorphism** + **Ring-SIS soundness reduction**
+- The dual binding (both \`a·z\` and \`b·z\` verified simultaneously) prevents the attacker from forging \`z\` without breaking Ring-SIS
+- If only 4.2 passes while 4.3 fails, it means \`z\` corresponds to a wrong \`d\`, and is rejected`
+    }
+  },
+  {
+    phase: 3,
+    stepNum: "4.4",
+    title: { zh: "验证短性 ||z||₂ ≤ B", en: "Verify Shortness ||z||₂ ≤ B" },
+    actor: "verifier",
+    message: null,
+    markdown: {
+      zh: `## 步骤 4.4：验证短性
+
+**目的**：确保 \`z\` 不含 \`d_i\` 的信息——零知识性的“短性”保证。
+
+### 角色与动作
+- 检查 \`||z||₂ ≤ B\`，其中 \`B = 1.2 · σ · √m ≈ 622080\`
+
+### 技术保证
+- **高斯尾界**：\`Pr[||r|| > B]\` 可忽略（\`σ = 32400\`, \`B = 1.2σ√256\`）
+- \`z = r + c·d\`，\`||z||\` 有界意味着 \`c·d\` 不主导（拒绝采样 3.5 保证）
+- 若 \`||z||\` 过大，说明 \`d_i\` 可被提取（违反零知识性），故拒绝`,
+      en: `## Step 4.4: Verify Shortness
+
+**Purpose**: Ensure \`z\` carries no information about \`d_i\` — the "shortness" guarantee of the zero-knowledge property.
+
+### Role & Action
+- Check \`||z||₂ ≤ B\`, where \`B = 1.2 · σ · √m ≈ 622080\`
+
+### Technical Guarantees
+- **Gaussian tail bound**: \`Pr[||r|| > B]\` is negligible (\`σ = 32400\`, \`B = 1.2σ√256\`)
+- \`z = r + c·d\`, and \`||z||\` being bounded means \`c·d\` does not dominate (guaranteed by rejection sampling in 3.5)
+- If \`||z||\` is too large, \`d_i\` could be extracted (violating zero-knowledge), so it is rejected`
+    }
+  },
+  {
+    phase: 3,
+    stepNum: "4.5",
+    title: { zh: "验证 Merkle 路径", en: "Verify Merkle Path" },
+    actor: "verifier",
+    message: null,
+    markdown: {
+      zh: `## 步骤 4.5：验证 Merkle 路径
+
+**目的**：确认 \`u_i\` 在原始承诺树中——承诺不可篡改。
+
+### 角色与动作
+- 验证 \`MerklePath(root, u_i, path)\`
+- \`path\` 包含 \`O(log L)\` 个兄弟哈希
+
+### 技术保证
+- \`SHA3-256\` 抗碰撞（伪造路径需要 \`2^128\` 次运算）
+- Merkle 树结构：验证只需 \`O(log L)\` 时间，与 \`L\` 无关
+- \`root\` 在 Setup 时公开绑定，任何 \`u_i\` 篡改都会使路径验证失败
+
+> 至此，CPC 协议完整流程结束：Issuer 已承诺路径，Holder 已生成零知识证明，Verifier 已验证线性关系、短性与承诺完整性。`,
+      en: `## Step 4.5: Verify Merkle Path
+
+**Purpose**: Confirm that \`u_i\` is in the original commitment tree — the commitment is tamper-proof.
+
+### Role & Action
+- Verify \`MerklePath(root, u_i, path)\`
+- \`path\` contains \`O(log L)\` sibling hashes
+
+### Technical Guarantees
+- \`SHA3-256\` collision resistance (forging a path requires \`2^128\` operations)
+- Merkle tree structure: verification takes only \`O(log L)\` time, independent of \`L\`
+- \`root\` is publicly bound during Setup, so any tampering of \`u_i\` will cause path verification to fail
+
+> At this point, the complete CPC protocol flow ends: the Issuer has committed to the path, the Holder has generated a zero-knowledge proof, and the Verifier has verified the linear relations, shortness, and commitment integrity.`
+    }
+  }
+];
+
+const PHASE_NAMES = ["Setup", "Commit", "Prove", "Verify"];
+const ACTOR_LABELS = { issuer: "ISSUER", holder: "HOLDER", verifier: "VERIFIER" };
+
+/* i18n dictionary */
+const I18N = {
+  subtitle: {
+    zh: 'Constrained Path Commitment · 后量子密码学协议交互式演示',
+    en: 'Constrained Path Commitment · Interactive Post-Quantum Cryptographic Protocol Walkthrough'
+  },
+  btnPrev: { zh: '上一步 (←)', en: 'Previous (←)' },
+  btnPlay: { zh: '播放 / 暂停 (空格)', en: 'Play / Pause (Space)' },
+  btnNext: { zh: '下一步 (→)', en: 'Next (→)' },
+  phaseTooltip: [
+    { zh: 'Setup 阶段', en: 'Setup Phase' },
+    { zh: 'Commit 阶段', en: 'Commit Phase' },
+    { zh: 'Prove 阶段', en: 'Prove Phase' },
+    { zh: 'Verify 阶段', en: 'Verify Phase' }
+  ]
+};
+
+/* ============================================================
+   State
+   ============================================================ */
+const state = {
+  globalIdx: 0,    // 0..STEPS.length-1
+  playing: false,
+  lang: localStorage.getItem('cpc-lang') || 'zh',
+  speed: 1,
+  timer: null
+};
+
+/* flatten access helpers */
+const totalSteps = STEPS.length;
+document.getElementById('stepTotal').textContent = totalSteps;
+
+function currentStep() { return STEPS[state.globalIdx]; }
+
+function firstIndexOfPhase(phase) {
+  for (let i = 0; i < STEPS.length; i++) if (STEPS[i].phase === phase) return i;
+  return 0;
+}
+function lastIndexOfPhase(phase) {
+  let idx = 0;
+  for (let i = 0; i < STEPS.length; i++) if (STEPS[i].phase === phase) idx = i;
+  return idx;
+}
+
+/* ============================================================
+   Render
+   ============================================================ */
+const mdHost = document.getElementById('mdHost');
+const msgDot = document.getElementById('msgDot');
+const msgLine = document.getElementById('msgLine');
+const msgLabel = document.getElementById('msgLabel');
+const canvas = document.getElementById('canvas');
+
+marked.setOptions({ breaks: true, gfm: true });
+
+function applyI18n() {
+  const lang = state.lang;
+  document.getElementById('subtitle').textContent = I18N.subtitle[lang];
+  document.getElementById('btnPrev').title = I18N.btnPrev[lang];
+  document.getElementById('btnPlay').title = I18N.btnPlay[lang];
+  document.getElementById('btnNext').title = I18N.btnNext[lang];
+  document.querySelectorAll('.phase-tab').forEach(t => {
+    t.title = I18N.phaseTooltip[Number(t.dataset.phase)][lang];
+  });
+  document.querySelectorAll('.lang-toggle span[data-lang]').forEach(s => {
+    s.classList.toggle('active', s.dataset.lang === lang);
+  });
+}
+
+function setLang(lang) {
+  state.lang = lang;
+  localStorage.setItem('cpc-lang', lang);
+  applyI18n();
+  render();
+}
+
+function render() {
+  const step = currentStep();
+
+  /* phase tabs */
+  document.querySelectorAll('.phase-tab').forEach(t => {
+    t.classList.toggle('active', Number(t.dataset.phase) === step.phase);
+  });
+
+  /* actors */
+  ['issuer', 'holder', 'verifier'].forEach(a => {
+    document.getElementById('actor-' + a).classList.toggle('active', a === step.actor);
+  });
+
+  /* status strip */
+  document.getElementById('statusActor').textContent = ACTOR_LABELS[step.actor];
+  document.getElementById('statusMsg').textContent = step.message
+    ? `→ send: ${step.message.label}`
+    : (step.phase === 3 ? 'verifying…' : 'local computation');
+
+  /* markdown */
+  const html = marked.parse(step.markdown[state.lang]);
+  mdHost.innerHTML = html;
+  mdHost.style.animation = 'none';
+  void mdHost.offsetWidth;            /* reflow to restart animation */
+  mdHost.style.animation = '';
+
+  /* controls */
+  document.getElementById('stepCur').textContent = state.globalIdx + 1;
+  document.getElementById('progressFill').style.width =
+    ((state.globalIdx + 1) / totalSteps * 100) + '%';
+  document.getElementById('btnPrev').disabled = state.globalIdx === 0;
+  document.getElementById('btnNext').disabled = state.globalIdx === totalSteps - 1;
+
+  /* message animation */
+  renderMessage(step);
+}
+
+/* ---------- message animation ---------- */
+let msgTimer = null;
+
+function renderMessage(step) {
+  clearTimeout(msgTimer);
+  msgDot.classList.remove('flying');
+  msgLine.classList.remove('visible');
+  msgLabel.classList.remove('visible');
+  msgDot.style.transition = 'none';
+
+  if (!step.message) return;
+
+  const fromEl = document.getElementById('actor-' + step.message.from);
+  const toEl   = document.getElementById('actor-' + step.message.to);
+  const cRect = canvas.getBoundingClientRect();
+  const fRect = fromEl.getBoundingClientRect();
+  const tRect = toEl.getBoundingClientRect();
+
+  const x1 = fRect.left + fRect.width / 2 - cRect.left;
+  const y1 = fRect.top  + fRect.height / 2 - cRect.top;
+  const x2 = tRect.left + tRect.width / 2 - cRect.left;
+  const y2 = tRect.top  + tRect.height / 2 - cRect.top;
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+
+  /* line */
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+  msgLine.style.left = x1 + 'px';
+  msgLine.style.top = y1 + 'px';
+  msgLine.style.width = len + 'px';
+  msgLine.style.transform = `rotate(${angle}deg)`;
+
+  /* dot start position */
+  msgDot.style.left = x1 + 'px';
+  msgDot.style.top = y1 + 'px';
+  msgDot.style.transform = 'translate(0,0)';
+
+  /* label */
+  msgLabel.style.left = mx + 'px';
+  msgLabel.style.top = (my - 18) + 'px';
+  msgLabel.textContent = step.message.label;
+
+  /* trigger animation on next frame */
+  requestAnimationFrame(() => {
+    msgLine.classList.add('visible');
+    msgLabel.classList.add('visible');
+    msgDot.style.transition = `transform ${1400 / state.speed}ms cubic-bezier(0.45,0.05,0.35,1), opacity 0.3s`;
+    msgDot.classList.add('flying');
+    msgDot.style.transform = `translate(${dx}px, ${dy}px)`;
+  });
+}
+
+/* ============================================================
+   Controls
+   ============================================================ */
+function goPrev() {
+  if (state.globalIdx > 0) { state.globalIdx--; render(); }
+}
+function goNext() {
+  if (state.globalIdx < totalSteps - 1) { state.globalIdx++; render(); }
+  else { pause(); }
+}
+function jumpToPhase(phase) {
+  state.globalIdx = firstIndexOfPhase(phase);
+  render();
+}
+function play() {
+  if (state.globalIdx === totalSteps - 1) { state.globalIdx = 0; render(); }
+  state.playing = true;
+  document.getElementById('btnPlay').textContent = '⏸';
+  scheduleNext();
+}
+function pause() {
+  state.playing = false;
+  document.getElementById('btnPlay').textContent = '▶';
+  clearTimeout(state.timer);
+}
+function togglePlay() { state.playing ? pause() : play(); }
+function scheduleNext() {
+  if (!state.playing) return;
+  clearTimeout(state.timer);
+  const step = currentStep();
+  /* message steps need longer to let the animation finish */
+  const base = step.message ? 2600 : 1800;
+  state.timer = setTimeout(() => {
+    if (state.globalIdx < totalSteps - 1) {
+      state.globalIdx++;
+      render();
+      scheduleNext();
+    } else {
+      pause();
+    }
+  }, base / state.speed);
+}
+
+/* ---------- wire up ---------- */
+document.getElementById('btnPrev').addEventListener('click', () => { pause(); goPrev(); });
+document.getElementById('btnNext').addEventListener('click', () => { pause(); goNext(); });
+document.getElementById('btnPlay').addEventListener('click', togglePlay);
+
+document.querySelectorAll('.phase-tab').forEach(t => {
+  t.addEventListener('click', () => { pause(); jumpToPhase(Number(t.dataset.phase)); });
+});
+
+document.querySelectorAll('.speed-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    state.speed = Number(b.dataset.speed);
+    document.querySelectorAll('.speed-btn').forEach(x => x.classList.toggle('active', x === b));
+    if (state.playing) scheduleNext();
+  });
+});
+
+document.getElementById('btnLang').addEventListener('click', () => {
+  setLang(state.lang === 'zh' ? 'en' : 'zh');
+});
+
+/* keyboard shortcuts */
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight') { pause(); goNext(); }
+  else if (e.key === 'ArrowLeft') { pause(); goPrev(); }
+  else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+});
+
+/* ============================================================
+   Persistent connection lines (SVG, redrawn on resize)
+   ============================================================ */
+function drawLinks() {
+  const svg = document.getElementById('links');
+  svg.innerHTML = '';
+  const cRect = canvas.getBoundingClientRect();
+  const actors = ['issuer', 'holder', 'verifier'].map(a => {
+    const el = document.getElementById('actor-' + a);
+    const r = el.getBoundingClientRect();
+    return {
+      x: r.left + r.width / 2 - cRect.left,
+      y: r.top + r.height / 2 - cRect.top
+    };
+  });
+  /* issuer-holder and holder-verifier links */
+  [[0,1],[1,2]].forEach(([i,j]) => {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', actors[i].x);
+    line.setAttribute('y1', actors[i].y);
+    line.setAttribute('x2', actors[j].x);
+    line.setAttribute('y2', actors[j].y);
+    svg.appendChild(line);
+  });
+}
+window.addEventListener('resize', () => { drawLinks(); render(); });
+
+/* ============================================================
+   Init
+   ============================================================ */
+window.addEventListener('load', () => {
+  drawLinks();
+  applyI18n();
+  render();
+});
+/* draw links as soon as layout is ready (fonts may shift positions) */
+setTimeout(drawLinks, 100);
+setTimeout(drawLinks, 500);
+</script>
+</body>
+</html>

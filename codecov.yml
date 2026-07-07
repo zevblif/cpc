@@ -1,0 +1,26 @@
+# Codecov configuration for CPC.
+# Target: >=90% coverage (see docs/hardening-plan-zh.md Task 3).
+# Note: coverage is uploaded from the Linux job of the CI matrix
+# (see .github/workflows/ci.yml). The Windows GNU toolchain lacks
+# profiler_builtins, so local coverage measurement on Windows is not
+# possible (see KNOWN_LIMITS.md §3.1).
+
+coverage:
+  status:
+    project:
+      default:
+        target: 90%
+        threshold: 1%
+    patch:
+      default:
+        target: 90%
+        threshold: 1%
+
+  range: [70, 100]
+  round: down
+  precision: 2
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_changes: false
