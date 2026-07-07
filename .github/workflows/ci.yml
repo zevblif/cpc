@@ -84,11 +84,20 @@ jobs:
         run: cargo install cargo-llvm-cov
 
       - name: Generate coverage
-        # Skip CT timing tests: coverage instrumentation inserts data-dependent
-        # counter increments per branch/edge, which itself introduces timing
-        # variance that dwarfs the constant-time properties being tested.
-        # These tests are still run (without instrumentation) in the Test job.
-        run: cargo llvm-cov --release --workspace --lcov --output-path lcov.info -- --skip timing
+        # Skip tests whose value is lost or whose runtime is prohibitive under
+        # coverage instrumentation:
+        #   - timing: CT timing regression tests. Instrumentation inserts
+        #     data-dependent counter increments per branch/edge, which itself
+        #     introduces timing variance that dwarfs the CT properties tested.
+        #   - statistics: rejection_sampling_statistics runs prove() 200x to
+        #     characterize the rejection loop. Each prove() is ~10-20x slower
+        #     under instrumentation, pushing runtime past the job timeout.
+        #   - budget: prove_completes_within_iteration_budget runs prove() 100x
+        #     for the same statistical reason.
+        # All skipped tests are still run (without instrumentation) in the
+        # Test job; they exercise the same prove()/verify() code paths as the
+        # integration tests that DO run here, so coverage is not reduced.
+        run: cargo llvm-cov --release --workspace --lcov --output-path lcov.info -- --skip timing --skip statistics --skip budget
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
