@@ -48,6 +48,17 @@ Unlike general-purpose zero-knowledge proofs, CPC is specifically designed for p
 
 **Research prototype — fully implemented.** The scheme is fully specified (see [paper.md](paper.md) and [formal-proof.md](formal-proof.md)) and the implementation is complete: all 44 tests pass, benchmarks are available in [benches/results.txt](benches/results.txt), and known limitations are documented in [KNOWN_LIMITS.md](KNOWN_LIMITS.md). This code has not been audited. Use at your own risk.
 
+### CI
+
+Cross-platform CI is live and green on `main`:
+
+| Job | Platform | Status |
+|-----|----------|--------|
+| Test | ubuntu-latest / macos-latest / windows-latest | passing |
+| Coverage | ubuntu-latest (release-mode `cargo-llvm-cov` → Codecov) | passing |
+
+CT timing-regression tests and heavy statistical-characterization tests are skipped under coverage instrumentation (they are still run in the Test job without instrumentation — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+
 ## Getting Started
 
 ### Prerequisites
@@ -147,7 +158,7 @@ See [benches/benchmark.rs](benches/benchmark.rs) for the criterion benchmark sou
 
 This is a research prototype. Key limitations include:
 - **Single parameter set** (m=256, compile-time constant)
-- **Coverage measurement pending** Linux CI run (configuration in place; GNU toolchain lacks profiler runtime)
+- **Coverage is measured** via Linux CI (release-mode `cargo-llvm-cov` → Codecov). Three test classes are skipped under coverage instrumentation only: CT timing-regression tests (instrumentation introduces data-dependent overhead that breaks the timing assertion), and two high-iteration statistical-characterization tests (`rejection_sampling_statistics`, `prove_completes_within_iteration_budget`) that would exceed the job timeout. All skipped tests still run in the Test job.
 - **No `no_std` support** (uses `std::sync::OnceLock` and `thread_rng`)
 
 Constant-time ring arithmetic and Gaussian sampling are implemented and covered by timing regression tests (see [KNOWN_LIMITS.md](KNOWN_LIMITS.md) §2.1).
@@ -169,7 +180,12 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or pull request. For major changes, let's discuss first.
+This is a small research project, so we are **not actively accepting pull requests** at this time. If you find a bug, have a question, or want to discuss a use case, please:
+
+- Open a [GitHub Issue](https://github.com/zevblif/cpc/issues), or
+- Email the maintainer directly at **zevblif@163.com**
+
+Reports and discussions are very welcome — we just prefer to keep the implementation in a single, reviewable line of history for now.
 
 ---
 

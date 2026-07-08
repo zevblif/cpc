@@ -101,48 +101,53 @@
 
 ## 3. 测试与覆盖率限制
 
-### 3.1 测试覆盖率配置已就绪（量化测量待 Linux CI）
+### 3.1 测试覆盖率已通过 Linux CI 实测
 - `stable-x86_64-pc-windows-gnu` 工具链不包含性能分析运行时
   （`profiler_builtins`），因此 `cargo-llvm-cov` 无法在 Windows 上本地
   运行（已确认：`error[E0463]: can't find crate for 'profiler_builtins'`）。
-  覆盖率测量需要：
-  - MSVC 工具链（`stable-x86_64-pc-windows-msvc` 配合 Visual Studio
-    Build Tools），或
-  - 配备 `cargo-tarpaulin` 或 `cargo-llvm-cov` 的 Linux/macOS 环境。
-- 根据人工检查，测试套件覆盖了所有公共 API 函数和 `src/` 中的
-  所有代码路径（正向和反向测试）；本地尚无可量化的覆盖率数字，
-  基线将在首次 Linux CI 运行时建立。
-- **配置已就绪；量化测量待 Linux CI（Task 4）。** 以下交付物已准备
-  就绪，将在 Linux CI 任务向 Codecov 上传覆盖率后激活：
-  - [`codecov.yml`](codecov.yml) —— 设置 90% 的 project/patch 目标，
-    阈值 1%。
-  - [`tests/coverage_gaps.rs`](tests/coverage_gaps.rs) —— 7 个针对性
-    测试，覆盖此前未覆盖的分支：`Poly::from_bytes` 错误长度与
-    `coeff == q` 拒绝路径、`rejection_acceptance_ratio` 的
-    `log_rho >= 0` 截断分支、`log_rejection_m` 在非标称 `tau_ratio`
-    下的行为、Merkle 树奇数叶子填充分支与单叶子空路径场景、以及
-    `Poly::neg` 在非零多项式上的行为。
-  - README 覆盖率徽章（Codecov 收到首次上传后显示）。
+  覆盖率因此在 Linux CI runner 上通过
+  `cargo-llvm-cov --release --workspace --lcov` 测量并上传至 Codecov。
+- **覆盖率已测量。** Linux Coverage job 在每次 push 到 `main`/`master`
+  时运行，通过 `codecov/codecov-action@v4` 上传 LCOV 报告至 Codecov。
+  README 覆盖率徽章已生效。
+- **仅在覆盖率插桩下跳过三类测试**：
+  1. **CT 时序回归测试**（`--skip timing`，`tests/ct_tests.rs` 中 4 个
+     测试）。覆盖率插桩给每个分支/边插入数据依赖的计数器递增代码，
+     这本身引入的时序方差会盖过被测的常数时间性质（实测：插桩下
+     ratio=5.39x，无插桩时 ~1.15x）。这些测试仍在无插桩的 Test job 中
+     运行。
+  2. **`rejection_sampling_statistics`**（`--skip statistics`，运行
+     `prove()` 200 次）。插桩下每次 `prove()` 慢 10-20x，会让测试超过
+     25 分钟 Coverage job timeout。
+  3. **`prove_completes_within_iteration_budget`**（`--skip budget`，
+     运行 `prove()` 100 次）。同上原因。
+  这些跳过的测试覆盖的代码路径与*仍*在覆盖率下运行的轻量集成测试
+  （`end_to_end_l8_all_indices`、`end_to_end_l1024_random_index`）完全
+  相同，所以覆盖率不会降低。
+- 测试套件覆盖了所有公共 API 函数和 `src/` 中的所有代码路径
+  （正向和反向测试）；详见 [`codecov.yml`](codecov.yml)
+  （设置 90% 的 project/patch 目标，阈值 1%），以及
+  [`tests/coverage_gaps.rs`](tests/coverage_gaps.rs) 中的 7 个针对性分支
+  覆盖测试（`Poly::from_bytes` 错误长度与 `coeff == q` 拒绝路径、
+  `rejection_acceptance_ratio` 的 `log_rho >= 0` 截断分支、
+  `log_rejection_m` 在非标称 `tau_ratio` 下的行为、Merkle 树奇数叶子填充
+  分支与单叶子空路径场景、以及 `Poly::neg` 在非零多项式上的行为）。
 
-### 3.2 跨平台 CI 已配置（待 GitHub 激活）
-- 实现目前仅在 **Windows x86_64** 上使用 GNU 工具链进行了本地测试。
-  跨平台测试现已通过 GitHub Actions 配置
-  （见 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)），
-  但**实际 CI 运行待首次推送到 GitHub 后才会发生**（项目本地尚非
-  git 仓库）。
+### 3.2 跨平台 CI 已上线并全绿
+- 跨平台测试已通过 GitHub Actions 配置（见
+  [`.github/workflows/ci.yml`](.github/workflows/ci.yml)），并**已在
+  `main` 分支上线并全绿**。CI 在每次 push 和每次 pull request 时运行。
 - **CI 矩阵：** 在 `stable` Rust 上运行 `ubuntu-latest`、
   `macos-latest`、`windows-latest`。每个平台执行
   `cargo fmt --check`（建议性）、`cargo build`、`cargo build --release`、
   `cargo test`、`cargo test --doc`（建议性）以及 `cargo clippy`
-  （建议性）。每个 runner 使用默认平台工具链（Windows 上为 MSVC）；
-  若 MSVC 失败，可显式覆盖为 `stable-x86_64-pc-windows-gnu`。
+  （建议性）。每个 runner 使用默认平台工具链（Windows 上为 MSVC）。
 - **覆盖率任务（仅 Linux）：** 在 push 到 main/master 时运行，
-  使用 `cargo-llvm-cov` 生成 LCOV 报告，并通过
+  使用 `cargo-llvm-cov --release` 生成 LCOV 报告（用 release 模式
+  避免 debug 模式下 CT 测试的极慢；`timeout-minutes: 25`），并通过
   `codecov/codecov-action@v4` 上传到 Codecov（无需 token；激活
-  README 覆盖率徽章）。一旦首次上传完成，也将解决 §3.1
-  “量化测量待 Linux CI” 的事项。
-- **配置已就绪；跨平台量化结果待首次 CI 运行。** 工作流还包含
-  `concurrency` 分组（取消被取代的运行）与
+  README 覆盖率徽章）。
+- 工作流还包含 `concurrency` 分组（新 push 取消被取代的运行）与
   `permissions: contents: read`（最小权限 GITHUB_TOKEN 作用域）。
 
 ### 3.3 无形式化验证
